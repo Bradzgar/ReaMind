@@ -94,8 +94,8 @@ local function check_heartbeat()
   local path = BRIDGE_ROOT .. "/heartbeat.json"
   local hb = ipc.read_json(path)
   if not hb then return end
-  if hb.timestamp then
-    last_heartbeat = hb.timestamp
+  if hb.ts then
+    last_heartbeat = reaper.time_precise()
   end
 end
 
