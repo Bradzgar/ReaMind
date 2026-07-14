@@ -64,4 +64,12 @@ function M.get_track(args)
   return false, "track not found"
 end
 
+M.tool_specs = {
+  get_project_summary = {},
+  list_tracks = {},
+  get_track = {
+    track_guid = { type = "string" }
+  }
+}
+
 return M

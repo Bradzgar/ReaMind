@@ -17,6 +17,7 @@ local input_text = ""
 local companion_started = false
 local HEARTBEAT_TIMEOUT = 15
 local last_heartbeat = 0
+local state = { frame = 0 }
 
 local function ensure_dirs()
   for _, sub in ipairs({ "inbox", "chat", "requests", "results" }) do
@@ -47,6 +48,7 @@ end
 local function drain_chat()
   local dir = BRIDGE_ROOT .. "/chat"
   for _, name in ipairs(list_files(dir)) do
+    if not name:match("%.json$") then goto continue end
     local path = dir .. "/" .. name
     local msg = ipc.read_json(path)
     if msg and not seen_chat[msg.seq] then
@@ -54,6 +56,7 @@ local function drain_chat()
       messages[#messages + 1] = msg
     end
     os.remove(path)
+    ::continue::
   end
 end
 
@@ -61,23 +64,29 @@ local function run_tool(name, args)
   local fn = tools[name]
   if not fn then return false, "unknown tool: " .. tostring(name) end
   reaper.Undo_BeginBlock()
-  local ok, result = fn(args)
-  reaper.Undo_EndBlock(name .. " (ReaMind)", -1)
-  return ok, result
+  local results = { pcall(fn, args) }
+  reaper.Undo_EndBlock("ReaMind: " .. name, -1)
+  local pcall_ok = results[1]
+  if not pcall_ok then
+    return false, tostring(results[2])
+  end
+  return table.unpack(results, 2)
 end
 
 local function poll_requests()
   local dir = BRIDGE_ROOT .. "/requests"
   for _, name in ipairs(list_files(dir)) do
+    if not name:match("%.json$") then goto continue end
     local path = dir .. "/" .. name
     local req = ipc.read_json(path)
     if req and req.id and not processed_ids[req.id] then
       processed_ids[req.id] = true
-      local args = helpers.coerce_args({}, req.args or {})
+      local args = helpers.coerce_args(tools.tool_specs[req.tool] or {}, req.args or {})
       local ok, result = run_tool(req.tool, args)
       ipc.write_result(BRIDGE_ROOT, req.id, ok, result)
     end
     os.remove(path)
+    ::continue::
   end
 end
 
@@ -99,7 +108,8 @@ local function draw()
       end
       reaper.ImGui_EndChild(ctx)
     end
-    check_heartbeat()
+    state.frame = (state.frame or 0) + 1
+    if state.frame % 30 == 1 then check_heartbeat() end
     if companion_started and (reaper.time_precise() - last_heartbeat) > HEARTBEAT_TIMEOUT then
       reaper.ImGui_TextColored(ctx, 0xFF4040FF, "companion not responding")
       reaper.ImGui_SameLine(ctx)
