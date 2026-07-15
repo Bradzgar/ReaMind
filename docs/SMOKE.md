@@ -54,3 +54,26 @@ Prereqs:
 6. **Reclaim:** `reclaim_space("/path/to/project")` — regenerable files deleted, bytes_freed reported.
 7. **Consolidate:** `consolidate_project("/path/to/project.RPP")` — external media copied in, moved_count reported.
 8. **Unnest:** `unnest_project("/path/to/nested.RPP")` — project copied to sibling dir under projects_root.
+
+## Phase 6: MCP Host + Cloud Providers
+
+### Provider configuration
+- [ ] `python -m reamind.server --help` shows bridge/config options
+- [ ] Companion starts with no cloud config (uses local auto-detect)
+
+### MCP host
+- [ ] Companion starts with empty `mcp_servers` config (no crash)
+- [ ] `list_mcp_servers` tool available in registry
+- [ ] `connect_mcp_server` tool spec exists (non-destructive)
+- [ ] `disconnect_mcp_server` tool spec exists (destructive, gated with confirm_ok)
+- [ ] `switch_provider` tool spec exists (destructive, gated)
+- [ ] `get_provider_status` tool available (non-destructive)
+
+### Tool namespacing
+- [ ] MCP tools registered with `{server}__{tool}` naming convention
+- [ ] MCP tool descriptions prefixed with `[MCP: {server}]`
+
+### JSON-RPC protocol
+- [ ] `mcp/protocol.py` passes all protocol tests
+- [ ] Stdio transport `mcp/stdio.py` passes all transport tests
+- [ ] SSE transport `mcp/sse.py` passes all transport tests
