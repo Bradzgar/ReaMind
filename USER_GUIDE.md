@@ -45,11 +45,23 @@ ollama pull qwen2.5:7b    # or any tool-capable model
 
 ### Set up the companion
 
+**Linux/macOS:**
+
 ```bash
-git clone https://github.com/yourname/reamind.git ~/projects/reamind
+git clone https://github.com/bradzgar/reamind.git ~/projects/reamind
 cd ~/projects/reamind/companion
 python -m venv .venv
 .venv/bin/pip install -e ".[dev]"   # pytest is the only dev dependency
+```
+
+**Windows:**
+
+```powershell
+git clone https://github.com/bradzgar/reamind.git %USERPROFILE%\projects\reamind
+cd %USERPROFILE%\projects\reamind\companion
+python -m venv .venv
+.venv\Scripts\activate
+pip install -e ".[dev]"   # pytest is the only dev dependency
 ```
 
 ### Install the Lua panel
@@ -78,9 +90,17 @@ ollama serve    # usually auto-starts with systemd, or run manually
 
 ### 2. Start the companion
 
+**Linux/macOS:**
 ```bash
 cd ~/projects/reamind/companion
 .venv/bin/python -m reamind.server
+```
+
+**Windows:**
+```powershell
+cd %USERPROFILE%\projects\reamind\companion
+.venv\Scripts\activate
+python -m reamind.server
 ```
 
 The companion auto-detects Ollama on `:11434` and LM Studio on `:1234`. It

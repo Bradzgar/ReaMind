@@ -41,11 +41,23 @@ ollama pull qwen2.5:7b
 
 ### Set up the companion
 
+**Linux/macOS:**
+
 ```bash
 git clone https://github.com/bradzgar/reamind.git
 cd reamind/companion
 python -m venv .venv
 .venv/bin/pip install -e ".[dev]"
+```
+
+**Windows:**
+
+```powershell
+git clone https://github.com/bradzgar/reamind.git
+cd reamind\companion
+python -m venv .venv
+.venv\Scripts\activate
+pip install -e ".[dev]"
 ```
 
 ### Install the Lua panel
@@ -56,9 +68,17 @@ Actions list.
 
 ### Launch
 
+**Linux/macOS:**
 ```bash
 cd reamind/companion
 .venv/bin/python -m reamind.server
+```
+
+**Windows:**
+```powershell
+cd reamind\companion
+.venv\Scripts\activate
+python -m reamind.server
 ```
 
 Open the panel in REAPER. The companion auto-detects Ollama and picks the
@@ -94,12 +114,23 @@ Full reference in [USER_GUIDE.md](USER_GUIDE.md).
 
 ## Running Tests
 
+**Linux/macOS:**
 ```bash
 cd companion
-.venv/bin/python -m pytest -v          # Python tests
+.venv/bin/python -m pytest -v
+```
 
+**Windows:**
+```powershell
+cd companion
+.venv\Scripts\activate
+python -m pytest -v
+```
+
+**Lua tests (all platforms):**
+```bash
 cd panel
-lua test/json_spec.lua && lua test/helpers_spec.lua   # Lua tests
+lua test/json_spec.lua && lua test/helpers_spec.lua
 ```
 
 ## Docs
