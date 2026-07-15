@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .mcp.protocol import next_id, parse_response, send_notification, send_request
+from .mcp.protocol import JSONRPCError, next_id, parse_response, send_notification, send_request
 from .mcp.stdio import StdioTransport
 from .mcp.sse import SSETransport
 from .providers.base import ToolCall, ToolSpec
@@ -21,7 +21,7 @@ class MCPClient:
             "clientInfo": {"name": "reamind", "version": "1.0.0"},
         }))
         resp = parse_response(self._transport.recv())
-        if "error" in str(resp):
+        if "error" in resp:
             raise RuntimeError(f"initialize failed: {resp}")
         self._transport.send(send_notification("notifications/initialized"))
         return True
@@ -34,10 +34,10 @@ class MCPClient:
         self._transport.send(send_request(req_id, "tools/list"))
         resp = parse_response(self._transport.recv())
         raw_tools = resp.get("result", {}).get("tools", [])
-        self.tools = []
+        tools: list[ToolSpec] = []
         for tool in raw_tools:
             is_destructive = bool(tool.get("annotations", {}).get("destructiveHint", False))
-            self.tools.append(ToolSpec(
+            tools.append(ToolSpec(
                 name=f"{self.name}__{tool['name']}",
                 description=f"[MCP: {self.name}] {tool.get('description', '')}",
                 parameters=tool.get("inputSchema", {"type": "object", "properties": {}}),
@@ -45,6 +45,7 @@ class MCPClient:
                 destructive=is_destructive,
                 return_confirmation=is_destructive,
             ))
+        self.tools = tools
         return self.tools
 
     def call_tool(self, name: str, args: dict) -> dict:
@@ -59,7 +60,7 @@ class MCPClient:
         }))
         try:
             resp = parse_response(self._transport.recv())
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError, JSONRPCError) as e:
             return {"ok": False, "error": str(e)}
         result = resp.get("result", {})
         return {"ok": True, "result": result}
@@ -99,7 +100,7 @@ class MCPHost:
         return all_tools
 
     def execute(self, call: ToolCall) -> dict:
-        for client in self._clients.values():
+        for client in sorted(self._clients.values(), key=lambda c: -len(c.name)):
             prefix = client.name + "__"
             if call.name.startswith(prefix):
                 return client.call_tool(call.name, call.arguments)
@@ -109,6 +110,7 @@ class MCPHost:
         return [
             {
                 "name": c.name,
+                "transport": type(c._transport).__name__,
                 "connected": c.connected(),
                 "tool_count": len(c.tools),
             }
