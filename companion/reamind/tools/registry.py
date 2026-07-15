@@ -16,6 +16,12 @@ class ToolRegistry:
     def specs(self) -> list[ToolSpec]:
         return list(self._specs.values())
 
+    def unregister_prefix(self, prefix: str) -> None:
+        target = prefix + "__"
+        to_remove = [name for name in self._specs if name.startswith(target)]
+        for name in to_remove:
+            del self._specs[name]
+
     def validate_args(self, name: str, args: dict) -> None:
         spec = self.get(name)
         required = spec.parameters.get("required", [])
