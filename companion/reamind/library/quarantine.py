@@ -52,6 +52,7 @@ def consolidate_project(project_path: Path) -> dict:
     sources = extract_sources(rpp)
     proj_dir = rpp.parent.resolve()
     moved = 0
+    errors = []
 
     for src in sources:
         src_path = Path(src["path"]).resolve()
@@ -62,10 +63,10 @@ def consolidate_project(project_path: Path) -> dict:
         try:
             shutil.copy2(str(src_path), str(proj_dir / src_path.name))
             moved += 1
-        except Exception:
-            pass
+        except Exception as e:
+            errors.append(f"Failed: {src_path}: {e}")
 
-    return {"moved_count": moved, "dest_dir": str(proj_dir)}
+    return {"moved_count": moved, "dest_dir": str(proj_dir), "errors": errors}
 
 
 def unnest_project(rpp_path: Path, projects_root: Path) -> dict:

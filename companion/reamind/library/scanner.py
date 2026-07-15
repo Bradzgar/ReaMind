@@ -168,7 +168,7 @@ def scan_root(root: Path) -> ScanResult:
         findings=findings,
         summary={
             "project_count": len(rpp_files),
-            "media_count": len(media_files) + len(rpp_files),
+            "media_count": len(media_files),
             "total_size_bytes": total_size,
             "orphaned_count": sum(1 for f in findings if f.type == "orphaned_media"),
             "regenerable_count": sum(1 for f in findings if f.type == "regenerable"),

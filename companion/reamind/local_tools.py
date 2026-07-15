@@ -129,7 +129,7 @@ def apply_template(call: ToolCall, reaper_executor: Callable[[ToolCall], dict] |
 
 
 def build_library_executor(
-    config: Config, quarantine_base: Path
+    config: Config, quarantine_base: Path, config_path: Path | None = None
 ) -> Callable[[ToolCall], dict]:
     quarantine_base = Path(quarantine_base).expanduser()
 
@@ -230,6 +230,8 @@ def build_library_executor(
             path = args.get("path", "")
             if path and path not in config.projects_roots:
                 config.projects_roots.append(path)
+                if config_path is not None:
+                    config_save(config, config_path)
             return {"ok": True, "result": {"message": f"Added {path} to projects_roots"}}
 
         return {"ok": False, "error": f"unknown library tool: {name}"}

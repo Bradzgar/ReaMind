@@ -48,7 +48,7 @@ class Server:
         existing = build_local_executor(
             self.config, self._config_path, self.bridge.root, reaper_executor
         )
-        lib_exec = build_library_executor(self.config, self._quarantine_base)
+        lib_exec = build_library_executor(self.config, self._quarantine_base, self._config_path)
 
         def merged(call: ToolCall) -> dict:
             result = existing(call)
