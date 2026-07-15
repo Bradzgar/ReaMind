@@ -1,4 +1,6 @@
+import os
 import pathlib
+from pathlib import Path
 
 from reamind.config import Config, default_config, load, save
 
@@ -45,7 +47,12 @@ def test_config_projects_roots_defaults_empty():
 
 def test_config_quarantine_dir_default():
     c = Config()
-    assert c.quarantine_dir == "~/.config/reamind/quarantine"
+    if os.name == "nt":
+        appdata = os.environ.get("APPDATA")
+        parent = Path(appdata) if appdata else Path.home() / "AppData" / "Roaming"
+        assert c.quarantine_dir == str(parent / "reamind" / "quarantine")
+    else:
+        assert c.quarantine_dir == "~/.config/reamind/quarantine"
 
 
 def test_config_projects_roots_roundtrips():

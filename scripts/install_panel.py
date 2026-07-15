@@ -90,7 +90,7 @@ def main() -> int:
 
     print()
     print("Panel installed. Next steps in REAPER:")
-    print("  1. Actions → Show action list")
+    print("  1. Actions -> Show action list")
     print("  2. Click ReaScript: Load...")
     print(f"  3. Select {scripts_dir / 'reamind_panel.lua'}")
     print("  4. Run the action to open the ReaMind panel")

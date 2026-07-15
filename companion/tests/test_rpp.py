@@ -37,6 +37,16 @@ RPP_MULTIPLE_SOURCES = r'''<REAPER_PROJECT 0.1
 RPP_EMPTY = "<REAPER_PROJECT 0.1\n>\n"
 
 
+RPP_ABS_TEMPLATE = '''<REAPER_PROJECT 0.1
+  <ITEM
+    <SOURCE WAVE
+      FILE "{}"
+    >
+  >
+>
+'''
+
+
 def test_parse_chunks_flat():
     text = "<CHUNK\n  KEY VAL\n>\n"
     chunks = parse_chunks(text)
@@ -61,7 +71,8 @@ def test_extract_sources_wave():
         sources = extract_sources(rpp)
         assert len(sources) == 1
         assert sources[0]["type"] == "WAVE"
-        assert sources[0]["path"].endswith("media/kick.wav")
+        expected = (Path(d) / "media" / "kick.wav").resolve()
+        assert Path(sources[0]["path"]).resolve() == expected
 
 
 def test_extract_sources_relative_path_resolution():
@@ -76,10 +87,11 @@ def test_extract_sources_relative_path_resolution():
 
 def test_extract_sources_preserves_absolute_paths():
     with tempfile.TemporaryDirectory() as d:
+        abs_path = str((Path(d) / "elsewhere" / "snare.wav").resolve())
         rpp = Path(d) / "test.RPP"
-        rpp.write_text(RPP_MULTIPLE_SOURCES)
+        rpp.write_text(RPP_ABS_TEMPLATE.format(abs_path))
         sources = extract_sources(rpp)
-        assert sources[0]["path"] == "/abs/path/snare.wav"
+        assert sources[0]["path"] == abs_path
 
 
 def test_extract_sources_all_types():
