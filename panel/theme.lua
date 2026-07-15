@@ -23,17 +23,28 @@ function M.merge_colors(base, overrides)
     return out
 end
 
+function M.hex_to_imgui_color(hex)
+    if type(hex) ~= "string" then return nil end
+    local r, g, b = hex:match("^#(%x%x)(%x%x)(%x%x)$")
+    if not r then return nil end
+    r = tonumber(r, 16) / 255
+    g = tonumber(g, 16) / 255
+    b = tonumber(b, 16) / 255
+    return reaper.ImGui_ColorConvertDouble4ToU32(r, g, b, 1.0)
+end
+
+M._pushed = 0
+
 function M.apply(ctx, colors)
     local col = M.merge_colors(M.DEFAULTS, colors)
-    local v = helpers.hex_to_native_color
-    local style = reaper.ImGui_GetStyle(ctx)
-    if style then
-        if v(col.bg) then
-            style.Colors[reaper.ImGui_Col_WindowBg() + 1] = v(col.bg)
-        end
-        if v(col.text) then
-            style.Colors[reaper.ImGui_Col_Text() + 1] = v(col.text)
-        end
+    local cv = M.hex_to_imgui_color
+    if cv(col.bg) then
+        reaper.ImGui_PushStyleColor(ctx, reaper.ImGui_Col_WindowBg(), cv(col.bg))
+        M._pushed = M._pushed + 1
+    end
+    if cv(col.text) then
+        reaper.ImGui_PushStyleColor(ctx, reaper.ImGui_Col_Text(), cv(col.text))
+        M._pushed = M._pushed + 1
     end
     if col.font_scale and col.font_scale > 0 then
         local io = reaper.ImGui_GetIO(ctx)
@@ -41,10 +52,11 @@ function M.apply(ctx, colors)
     end
 end
 
-function M.sample_reaper_colors(ctx)
-    -- Optional: sample REAPER theme colors via reaper.GetThemeColor.
-    -- Returns defaults; REAPER integration is untestable under standalone Lua.
-    return M.DEFAULTS
+function M.pop(ctx)
+    if M._pushed > 0 then
+        reaper.ImGui_PopStyleColor(ctx, M._pushed)
+        M._pushed = 0
+    end
 end
 
 return M

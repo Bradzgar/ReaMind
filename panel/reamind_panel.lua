@@ -46,8 +46,6 @@ local current_model = ""
 local current_colors = { bg = theme.DEFAULTS.bg, text = theme.DEFAULTS.text, accent = theme.DEFAULTS.accent,
                           user_bubble = theme.DEFAULTS.user_bubble, assistant_bubble = theme.DEFAULTS.assistant_bubble,
                           error = theme.DEFAULTS.error, font_scale = theme.DEFAULTS.font_scale }
-local theme_applied = false
-local theme_dirty = false
 local theme_preset_items = { "dark", "light" }
 local current_preset_idx = 0
 
@@ -147,11 +145,7 @@ end
 local function draw()
   local visible, open = reaper.ImGui_Begin(ctx, "ReaMind", true)
   if visible then
-    if not theme_applied or theme_dirty then
-      theme.apply(ctx, current_colors)
-      theme_applied = true
-      theme_dirty = false
-    end
+    theme.apply(ctx, current_colors)
     if reaper.ImGui_BeginChild(ctx, "transcript", 0, -60) then
       for _, m in ipairs(messages) do
         reaper.ImGui_TextWrapped(ctx, string.format("[%s] %s", m.role or "?", m.text or ""))
@@ -215,24 +209,17 @@ local function draw()
             user_bubble = "#d4edda", assistant_bubble = "#d6e4f0", error = "#dc3545",
           })
         end
-        theme_dirty = true
       end
       for _, key in ipairs({ "bg", "text", "accent", "user_bubble", "assistant_bubble", "error" }) do
         local changed, val = reaper.ImGui_InputText(ctx, key, current_colors[key] or "")
         if changed then
           current_colors[key] = val
-          theme_dirty = true
         end
       end
       local fs_changed, fs_val = reaper.ImGui_SliderDouble(ctx, "Font Scale", current_colors.font_scale or 1.0, 0.5, 2.0, "%.2f")
       if fs_changed then
         current_colors.font_scale = fs_val
-        theme_dirty = true
       end
-      if reaper.ImGui_Button(ctx, "Apply Theme") then
-        theme_dirty = false
-      end
-      reaper.ImGui_SameLine(ctx)
       if reaper.ImGui_Button(ctx, "Save Theme") then
         local config_path
         if is_windows then
@@ -245,9 +232,9 @@ local function draw()
           theme = { preset = theme_preset_items[current_preset_idx + 1] or "dark", colors = current_colors }
         }
         ipc.write_json_atomic(config_path, conf)
-        theme_dirty = false
       end
     end
+    theme.pop(ctx)
     reaper.ImGui_End(ctx)
   end
   return open
