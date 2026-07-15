@@ -71,7 +71,7 @@ class Config:
     provider: ProviderConfig = field(default_factory=ProviderConfig)
     theme: Theme = field(default_factory=default_theme)
     projects_roots: list[str] = field(default_factory=list)
-    quarantine_dir: str = ""
+    quarantine_dir: str = "~/.config/reamind/quarantine"
     mcp_servers: list = field(default_factory=list)
     templates_dir: str = ""
     safety: SafetyConfig = field(default_factory=SafetyConfig)
@@ -96,7 +96,7 @@ class Config:
             provider=ProviderConfig.from_dict(d.get("provider", {})),
             theme=Theme.from_dict(d.get("theme", {})),
             projects_roots=d.get("projects_roots", []),
-            quarantine_dir=d.get("quarantine_dir", ""),
+            quarantine_dir=d.get("quarantine_dir", "~/.config/reamind/quarantine"),
             mcp_servers=d.get("mcp_servers", []),
             templates_dir=d.get("templates_dir", ""),
             safety=SafetyConfig.from_dict(d.get("safety", {})),

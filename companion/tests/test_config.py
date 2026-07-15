@@ -36,3 +36,29 @@ def test_from_dict_tolerates_missing_keys():
     cfg = Config.from_dict({})
     assert cfg.provider.name == "local"
     assert cfg.mcp_servers == []
+
+
+def test_config_projects_roots_defaults_empty():
+    c = Config()
+    assert c.projects_roots == []
+
+
+def test_config_quarantine_dir_default():
+    c = Config()
+    assert c.quarantine_dir == "~/.config/reamind/quarantine"
+
+
+def test_config_projects_roots_roundtrips():
+    c = Config()
+    c.projects_roots = ["/home/user/Projects", "/mnt/media"]
+    d = c.to_dict()
+    loaded = Config.from_dict(d)
+    assert loaded.projects_roots == ["/home/user/Projects", "/mnt/media"]
+
+
+def test_config_quarantine_dir_roundtrips():
+    c = Config()
+    c.quarantine_dir = "/tmp/quarantine"
+    d = c.to_dict()
+    loaded = Config.from_dict(d)
+    assert loaded.quarantine_dir == "/tmp/quarantine"
