@@ -12,7 +12,8 @@ from .bridge import Bridge
 from .config import Config, load
 from .local_tools import build_library_executor, build_local_executor, write_status
 from .providers.base import LLMProvider, Message, ToolCall
-from .providers.local import LocalProvider, detect_servers, list_models
+from .providers.local import LocalProvider
+from .provider_factory import build_provider
 from .tools.fx_map import resolve_fx_name
 from .tools.library import build_library_registry
 from .tools.reaper_construction import build_construction_registry
@@ -128,30 +129,6 @@ class Server:
                 set_scanned_cache(fx_list)
         except Exception:
             pass
-
-
-def build_provider(config: Config) -> LLMProvider:
-    p = config.provider
-    base_url = p.base_url
-    model = p.model
-    if not base_url:
-        servers = detect_servers()
-        if not servers:
-            raise RuntimeError(
-                "No local model server found. Start Ollama (:11434) or LM Studio (:1234), "
-                "or set provider.base_url in the config."
-            )
-        base_url = servers[0]["base_url"]
-    if not model:
-        models = list_models(base_url)
-        if not models:
-            raise RuntimeError(
-                f"No models available at {base_url}. Pull a tool-capable model "
-                "(e.g. `ollama pull qwen2.5:7b`)."
-            )
-        model = models[0]
-    tool_mode = "native" if p.tool_mode == "auto" else p.tool_mode
-    return LocalProvider(base_url=base_url, model=model, tool_mode=tool_mode, api_key=p.api_key)
 
 
 def main(argv: list[str] | None = None) -> int:
