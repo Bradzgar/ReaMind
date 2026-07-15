@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import http.client
 import json
 import time
 import urllib.error
@@ -10,8 +11,7 @@ class SSETransport:
     def __init__(self, url: str) -> None:
         self._url = url.rstrip("/")
         self._message_url: str | None = None
-        self._response: urllib.request._UrlopenRet | None = None
-        self._buffer = ""
+        self._response: http.client.HTTPResponse | None = None
 
     def start(self) -> bool:
         req = urllib.request.Request(self._url, headers={"Accept": "text/event-stream"})

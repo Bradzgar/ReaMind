@@ -8,15 +8,13 @@ from reamind.mcp.sse import SSETransport
 
 
 class MCPSSEHandler(BaseHTTPRequestHandler):
-    sse_wfile = None
-
     def do_GET(self):
         if self.path == "/mcp":
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream")
             self.send_header("Cache-Control", "no-cache")
             self.end_headers()
-            MCPSSEHandler.sse_wfile = self.wfile
+            self.server.sse_wfile = self.wfile
             session_id = "sess_123"
             endpoint = f"http://localhost:{self.server.server_port}/messages/{session_id}"
             self.wfile.write(f"event: endpoint\ndata: {endpoint}\n\n".encode())
@@ -31,6 +29,7 @@ class MCPSSEHandler(BaseHTTPRequestHandler):
             self.end_headers()
 
     def do_POST(self):
+        sse_wfile = getattr(self.server, "sse_wfile", None)
         if self.path.startswith("/messages/"):
             length = int(self.headers.get("Content-Length", "0"))
             if length > 0:
@@ -47,10 +46,10 @@ class MCPSSEHandler(BaseHTTPRequestHandler):
                     response = {"jsonrpc": "2.0", "id": req_id, "result": {}}
                 self.send_response(200)
                 self.end_headers()
-                if MCPSSEHandler.sse_wfile is not None:
+                if sse_wfile is not None:
                     try:
-                        MCPSSEHandler.sse_wfile.write(f"data: {json.dumps(response)}\n\n".encode())
-                        MCPSSEHandler.sse_wfile.flush()
+                        sse_wfile.write(f"data: {json.dumps(response)}\n\n".encode())
+                        sse_wfile.flush()
                     except Exception:
                         pass
         else:
