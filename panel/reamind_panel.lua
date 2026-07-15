@@ -77,6 +77,9 @@ end
 
 local function launch_companion()
   local cmd = string.format('"%s" -m reamind.server --bridge "%s" --config "%s"', COMPANION_PY, BRIDGE_ROOT, config_path())
+  if is_windows then
+    cmd = 'cmd /k ' .. cmd
+  end
   reaper.ExecProcess(cmd, -2)
   companion_started = true
   last_heartbeat = reaper.time_precise()
