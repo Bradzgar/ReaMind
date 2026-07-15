@@ -10,10 +10,11 @@ from typing import Callable
 from .agent import run_turn
 from .bridge import Bridge
 from .config import Config, load
-from .local_tools import build_local_executor, write_status
+from .local_tools import build_library_executor, build_local_executor, write_status
 from .providers.base import LLMProvider, Message, ToolCall
 from .providers.local import LocalProvider, detect_servers, list_models
 from .tools.fx_map import resolve_fx_name
+from .tools.library import build_library_registry
 from .tools.reaper_construction import build_construction_registry
 from .tools.reaper_readonly import build_registry
 
@@ -34,10 +35,31 @@ class Server:
         con_reg = build_construction_registry()
         for spec in con_reg.specs():
             self.registry.register(spec)
+        lib_reg = build_library_registry()
+        for spec in lib_reg.specs():
+            self.registry.register(spec)
+        self._quarantine_base = Path(self.config.quarantine_dir)
         self.history: list[Message] = [Message(role="system", content=SYSTEM_PROMPT)]
         self._req_seq = 0
         self._config_path = config_path
-        self.local_executor = build_local_executor(self.config, self._config_path, self.bridge.root)
+        self._rebuild_local_executor()
+
+    def _build_merged_local_executor(self, reaper_executor=None):
+        existing = build_local_executor(
+            self.config, self._config_path, self.bridge.root, reaper_executor
+        )
+        lib_exec = build_library_executor(self.config, self._quarantine_base)
+
+        def merged(call: ToolCall) -> dict:
+            result = existing(call)
+            if result.get("ok") is False and "unknown" in str(result.get("error", "")):
+                return lib_exec(call)
+            return result
+
+        return merged
+
+    def _rebuild_local_executor(self, reaper_executor=None):
+        self.local_executor = self._build_merged_local_executor(reaper_executor)
 
     def make_reaper_executor(
         self,
@@ -64,9 +86,7 @@ class Server:
     def handle_user_message(self, text: str) -> None:
         self.history.append(Message(role="user", content=text))
         executor = self.make_reaper_executor()
-        self.local_executor = build_local_executor(
-            self.config, self._config_path, self.bridge.root, executor
-        )
+        self._rebuild_local_executor(executor)
         run_turn(
             self.provider,
             self.registry,

@@ -1,8 +1,10 @@
+import tempfile
 from pathlib import Path
 
 from reamind.config import Config, ProviderConfig, save
 from reamind.jsonio import read_json
 from reamind.local_tools import (
+    build_library_executor,
     build_local_executor,
     server_status,
     update_provider_config,
@@ -132,3 +134,58 @@ def test_apply_template_reads_and_dispatches_steps(tmp_path, monkeypatch):
     assert result["result"]["steps_completed"] == 1
     assert len(reaper_calls) == 1
     assert reaper_calls[0].name == "create_track"
+
+
+def test_library_executor_scan_root():
+    with tempfile.TemporaryDirectory() as d:
+        config = Config()
+        config.projects_roots = [d]
+        exec_fn = build_library_executor(config, Path(d) / "quarantine")
+        result = exec_fn(ToolCall(id="c1", name="scan_root", arguments={"path": d}))
+        assert result["ok"] is True
+        assert "project_count" in result["result"]
+
+
+def test_library_executor_unknown_tool():
+    config = Config()
+    exec_fn = build_library_executor(config, Path("/tmp/q"))
+    result = exec_fn(ToolCall(id="c1", name="nonexistent_library_tool", arguments={}))
+    assert result["ok"] is False
+    assert "unknown" in result["error"]
+
+
+def test_library_executor_list_findings_empty():
+    with tempfile.TemporaryDirectory() as d:
+        config = Config()
+        exec_fn = build_library_executor(config, Path("/tmp/q"))
+        result = exec_fn(ToolCall(id="c1", name="list_findings", arguments={"root": d}))
+        assert result["ok"] is True
+        assert isinstance(result["result"]["findings"], list)
+
+
+def test_library_executor_quarantine_files():
+    with tempfile.TemporaryDirectory() as d:
+        root = Path(d)
+        f = root / "orphan.wav"
+        f.write_bytes(b"data")
+        config = Config()
+        qbase = root / "q"
+        exec_fn = build_library_executor(config, qbase)
+        result = exec_fn(ToolCall(id="c1", name="quarantine_files", arguments={
+            "paths": [str(f)], "confirm_ok": True,
+        }))
+        assert result["ok"] is True
+        assert result["result"]["moved_count"] == 1
+
+
+def test_library_executor_get_file_details():
+    with tempfile.TemporaryDirectory() as d:
+        root = Path(d)
+        f = root / "test.wav"
+        f.write_bytes(b"file content")
+        exec_fn = build_library_executor(Config(), Path("/tmp/q"))
+        result = exec_fn(ToolCall(id="c1", name="get_file_details", arguments={"path": str(f)}))
+        assert result["ok"] is True
+        assert result["result"]["exists"] is True
+        assert result["result"]["size_bytes"] == 12
+        assert result["result"]["hash"] is not None

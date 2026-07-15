@@ -1,10 +1,18 @@
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 from typing import Callable
 
 from .config import Config, save as config_save
 from .jsonio import atomic_write_json, read_json
+from .library.quarantine import (
+    consolidate_project,
+    quarantine_files as _quarantine_files,
+    reclaim_regenerable,
+    unnest_project,
+)
+from .library.scanner import scan_root
 from .providers.base import ToolCall
 from .providers.local import detect_servers, list_models
 
@@ -118,3 +126,112 @@ def apply_template(call: ToolCall, reaper_executor: Callable[[ToolCall], dict] |
             "total_steps": len(steps),
         },
     }
+
+
+def build_library_executor(
+    config: Config, quarantine_base: Path
+) -> Callable[[ToolCall], dict]:
+    quarantine_base = Path(quarantine_base).expanduser()
+
+    def executor(call: ToolCall) -> dict:
+        name = call.name
+        args = call.arguments or {}
+
+        if name == "scan_root":
+            path = Path(args.get("path", ""))
+            result = scan_root(path)
+            return {"ok": True, "result": {
+                "root": result.root,
+                "project_count": result.summary["project_count"],
+                "media_count": result.summary["media_count"],
+                "total_size_bytes": result.summary["total_size_bytes"],
+                "finding_counts": {
+                    k.replace("_count", ""): v
+                    for k, v in result.summary.items()
+                    if k.endswith("_count")
+                },
+            }}
+
+        if name == "list_findings":
+            root_path = Path(args.get("root", ""))
+            filter_type = args.get("type")
+            result = scan_root(root_path)
+            findings_list = result.findings
+            if filter_type:
+                findings_list = [f for f in findings_list if f.type == filter_type]
+            return {"ok": True, "result": {
+                "findings": [
+                    {
+                        "type": f.type, "path": f.path,
+                        "reason": f.reason, "size_bytes": f.size_bytes,
+                        "related": f.related,
+                    }
+                    for f in findings_list
+                ],
+            }}
+
+        if name == "get_file_details":
+            p = Path(args.get("path", ""))
+            try:
+                st = p.stat()
+                fhash = None
+                if p.is_file():
+                    fhash = hashlib.sha256(p.read_bytes()).hexdigest()
+                return {"ok": True, "result": {
+                    "path": str(p), "size_bytes": st.st_size,
+                    "modified": st.st_mtime, "hash": fhash, "exists": p.exists(),
+                }}
+            except OSError as e:
+                return {"ok": False, "error": str(e)}
+
+        if name == "list_quarantine_batches":
+            batches = []
+            if quarantine_base.exists():
+                for entry in sorted(quarantine_base.iterdir(), reverse=True):
+                    if entry.is_dir():
+                        fc = sum(1 for _ in entry.rglob("*") if _.is_file())
+                        sz = sum(_.stat().st_size for _ in entry.rglob("*") if _.is_file())
+                        batches.append({"date": entry.name, "file_count": fc, "total_bytes": sz})
+            return {"ok": True, "result": {"batches": batches}}
+
+        if name == "quarantine_files":
+            paths = [Path(p) for p in args.get("paths", [])]
+            result = _quarantine_files(paths, quarantine_base)
+            return {"ok": True, "result": result}
+
+        if name == "reclaim_space":
+            root_dir = args.get("root")
+            roots_to_scan = [Path(root_dir)] if root_dir else [Path(r) for r in config.projects_roots]
+            regenerable = []
+            for rt in roots_to_scan:
+                rt = Path(rt)
+                if rt.is_dir():
+                    for entry in rt.rglob("*"):
+                        if entry.is_file():
+                            n = entry.name
+                            if n.endswith(".reapeaks") or n.endswith(".RPP-UNDO") or n.endswith(".RPP-bak"):
+                                regenerable.append(entry)
+            result = reclaim_regenerable(regenerable)
+            return {"ok": True, "result": result}
+
+        if name == "consolidate_project":
+            result = consolidate_project(Path(args["project_path"]))
+            return {"ok": True, "result": result}
+
+        if name == "unnest_project":
+            roots = config.projects_roots or [str(Path(args["project_path"]).parent.parent)]
+            proj_root = Path(roots[0])
+            result = unnest_project(Path(args["project_path"]), proj_root)
+            if "error" in result:
+                return {"ok": False, "error": result["error"]}
+            return {"ok": True, "result": result}
+
+        if name == "set_projects_root":
+            path = args.get("path", "")
+            if path and path not in config.projects_roots:
+                config.projects_roots.append(path)
+            return {"ok": True, "result": {"message": f"Added {path} to projects_roots"}}
+
+        return {"ok": False, "error": f"unknown library tool: {name}"}
+
+    return executor
