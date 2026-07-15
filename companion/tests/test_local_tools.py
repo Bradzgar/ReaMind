@@ -105,3 +105,30 @@ def test_build_local_executor_routes_tools(tmp_path, monkeypatch):
     r3 = exec_fn(ToolCall(id="c3", name="bogus", arguments={}))
     assert r3["ok"] is False
     assert "unknown" in r3["error"]
+
+
+def test_apply_template_reads_and_dispatches_steps(tmp_path, monkeypatch):
+    templates_dir = tmp_path / "templates"
+    templates_dir.mkdir()
+    template_path = templates_dir / "test_tmpl.json"
+    import json
+    template_path.write_text(json.dumps([
+        {"tool": "create_track", "args": {"name": "TestTrack"}},
+    ]))
+
+    monkeypatch.setattr("reamind.local_tools.__file__", str(tmp_path / "x" / "y" / "z.py"))
+
+    from reamind.local_tools import apply_template
+
+    call = ToolCall(id="c1", name="apply_template", arguments={"template_name": "test_tmpl"})
+    reaper_calls = []
+
+    def fake_executor(c):
+        reaper_calls.append(c)
+        return {"ok": True, "result": {}}
+
+    result = apply_template(call, fake_executor)
+    assert result["ok"] is True
+    assert result["result"]["steps_completed"] == 1
+    assert len(reaper_calls) == 1
+    assert reaper_calls[0].name == "create_track"

@@ -165,3 +165,17 @@ def test_server_writes_status_on_run(tmp_path, monkeypatch):
     s = read_json(bridge.root / "status.json")
     assert s["current_model"] == "m"
     assert len(s["servers"]) == 1
+
+
+def test_server_registry_includes_construction_tools(tmp_path):
+    config = default_config()
+    bridge = Bridge(tmp_path / "br")
+    bridge.ensure_dirs()
+    provider = FakeProvider([])
+    server = Server(config, provider, bridge)
+    names = {s.name for s in server.registry.specs()}
+    assert "create_track" in names
+    assert "insert_fx" in names
+    assert "delete_track" in names
+    assert "list_available_fx" in names
+    assert "apply_template" in names

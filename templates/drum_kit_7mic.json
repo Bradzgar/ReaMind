@@ -1,0 +1,10 @@
+[
+  {"tool": "create_folder", "args": {"name": "DRUMS", "child_guids": []}},
+  {"tool": "create_track", "args": {"name": "Kick", "color": 16724787, "position": -1}},
+  {"tool": "create_track", "args": {"name": "Snare", "color": 3407667, "position": -1}},
+  {"tool": "create_track", "args": {"name": "HiHat", "color": 3355647, "position": -1}},
+  {"tool": "create_track", "args": {"name": "RackTom", "color": 16755200, "position": -1}},
+  {"tool": "create_track", "args": {"name": "FloorTom", "color": 11141375, "position": -1}},
+  {"tool": "create_track", "args": {"name": "OH-L", "color": 43690, "position": -1}},
+  {"tool": "create_track", "args": {"name": "OH-R", "color": 11141120, "position": -1}}
+]
