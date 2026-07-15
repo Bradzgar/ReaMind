@@ -101,3 +101,9 @@ def test_extract_sources_empty_project():
 def test_extract_sources_missing_file():
     sources = extract_sources(Path("/nonexistent/path.RPP"))
     assert sources == []
+
+
+def test_parse_chunks_preserves_full_tag():
+    chunks = parse_chunks("<SOURCE WAVE\n>\n")
+    assert chunks[0]["full_tag"] == "SOURCE WAVE"
+    assert chunks[0]["name"] == "SOURCE"
