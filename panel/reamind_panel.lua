@@ -43,10 +43,21 @@ local settings_loaded = false
 local server_display = "scanning..."
 local available_models = {}
 local current_model = ""
+local provider_url = ""
+local provider_model = ""
+local provider_api_key = ""
 local current_colors = { bg = theme.DEFAULTS.bg, text = theme.DEFAULTS.text, accent = theme.DEFAULTS.accent,
                           user_bubble = theme.DEFAULTS.user_bubble, assistant_bubble = theme.DEFAULTS.assistant_bubble,
                           error = theme.DEFAULTS.error }
 local theme_preset_items = { "dark", "light" }
+
+local function config_path()
+  if is_windows then
+    return (os.getenv("APPDATA") or (os.getenv("USERPROFILE") or "") .. "/AppData/Roaming") .. "/reamind/config.json"
+  end
+  local home = os.getenv("HOME") or os.getenv("USERPROFILE") or ""
+  return home .. "/.config/reamind/config.json"
+end
 local current_preset_idx = 0
 
 local function ensure_dirs()
@@ -55,8 +66,17 @@ local function ensure_dirs()
   end
 end
 
+do
+  local c = ipc.read_json(config_path())
+  if c and c.provider then
+    provider_url = c.provider.base_url or ""
+    provider_model = c.provider.model or ""
+    provider_api_key = c.provider.api_key or ""
+  end
+end
+
 local function launch_companion()
-  local cmd = string.format('"%s" -m reamind.server --bridge "%s"', COMPANION_PY, BRIDGE_ROOT)
+  local cmd = string.format('"%s" -m reamind.server --bridge "%s" --config "%s"', COMPANION_PY, BRIDGE_ROOT, config_path())
   reaper.ExecProcess(cmd, -2)
   companion_started = true
   last_heartbeat = reaper.time_precise()
@@ -198,6 +218,23 @@ local function draw()
         available_models = {}
       end
       reaper.ImGui_Separator(ctx)
+      reaper.ImGui_Text(ctx, "Provider")
+      local url_changed, new_url = reaper.ImGui_InputText(ctx, "Base URL", provider_url)
+      if url_changed then provider_url = new_url end
+      local model_changed, new_model = reaper.ImGui_InputText(ctx, "Model", provider_model)
+      if model_changed then provider_model = new_model end
+      local key_changed, new_key = reaper.ImGui_InputText(ctx, "API Key", provider_api_key)
+      if key_changed then provider_api_key = new_key end
+      if reaper.ImGui_Button(ctx, "Save & Restart Companion") then
+        local c = ipc.read_json(config_path()) or {}
+        c.provider = c.provider or {}
+        c.provider.base_url = provider_url
+        c.provider.model = provider_model
+        c.provider.api_key = provider_api_key
+        ipc.write_json_atomic(config_path(), c)
+        launch_companion()
+      end
+      reaper.ImGui_Separator(ctx)
       reaper.ImGui_Text(ctx, "Theme")
       local preset_changed, new_preset = reaper.ImGui_Combo(ctx, "Preset", current_preset_idx, table.concat(theme_preset_items, "\0") .. "\0")
       if preset_changed then
@@ -218,17 +255,10 @@ local function draw()
         end
       end
       if reaper.ImGui_Button(ctx, "Save Theme") then
-        local config_path
-        if is_windows then
-          config_path = (os.getenv("APPDATA") or (os.getenv("USERPROFILE") or "") .. "/AppData/Roaming") .. "/reamind/config.json"
-        else
-          local home = os.getenv("HOME") or os.getenv("USERPROFILE") or ""
-          config_path = home .. "/.config/reamind/config.json"
-        end
         local conf = {
           theme = { preset = theme_preset_items[current_preset_idx + 1] or "dark", colors = current_colors }
         }
-        ipc.write_json_atomic(config_path, conf)
+        ipc.write_json_atomic(config_path(), conf)
       end
     end
     theme.pop(ctx)
