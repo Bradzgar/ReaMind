@@ -18,6 +18,15 @@ function M.truthy(v, msg)
   end
 end
 
+function M.falsy(v, msg)
+  if v then
+    M.failed = M.failed + 1
+    print(string.format("FAIL: %s (got truthy)", msg or ""))
+  else
+    M.passed = M.passed + 1
+  end
+end
+
 function M.finish()
   print(string.format("passed=%d failed=%d", M.passed, M.failed))
   if M.failed > 0 then os.exit(1) end
