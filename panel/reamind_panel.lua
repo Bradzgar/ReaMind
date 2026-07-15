@@ -137,6 +137,7 @@ end
 local function draw()
   local visible, open = reaper.ImGui_Begin(ctx, "ReaMind", true)
   if visible then
+    theme.apply(ctx, current_colors)
     if reaper.ImGui_BeginChild(ctx, "transcript", 0, -60) then
       for _, m in ipairs(messages) do
         reaper.ImGui_TextWrapped(ctx, string.format("[%s] %s", m.role or "?", m.text or ""))
@@ -211,8 +212,7 @@ local function draw()
         current_colors.font_scale = fs_val
         theme_dirty = true
       end
-      if theme_dirty and reaper.ImGui_Button(ctx, "Apply Theme") then
-        theme.apply(ctx, current_colors)
+      if reaper.ImGui_Button(ctx, "Apply Theme") then
         theme_dirty = false
       end
       reaper.ImGui_SameLine(ctx)
