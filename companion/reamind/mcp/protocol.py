@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import json
-
 
 class JSONRPCError(Exception):
     def __init__(self, code: int, message: str) -> None:
