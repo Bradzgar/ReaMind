@@ -66,17 +66,21 @@ pip install -e ".[dev]"   # pytest is the only dev dependency
 
 ### Install the Lua panel
 
-Copy or symlink `panel/reamind_panel.lua` into your REAPER scripts directory.
-Then add it as a startup action in REAPER:
+Run the installer script from the repo root:
+
+```bash
+python scripts/install_panel.py
+```
+
+This copies the panel files into REAPER's `Scripts/ReaMind/` directory. It
+auto-detects the REAPER resource path for your platform.
+
+Then in REAPER:
 
 1. **Actions → Show action list**
 2. Click **ReaScript: Load...**
-3. Select `reamind_panel.lua`
+3. Select `reamind_panel.lua` from `Scripts/ReaMind/`
 4. Add the action to REAPER's `__startup.lua` or run it manually
-
-The panel folder includes supporting files (`helpers.lua`, `ipc.lua`,
-`json.lua`, `theme.lua`, `tools/`) which must be in the same directory as
-`reamind_panel.lua`.
 
 ---
 

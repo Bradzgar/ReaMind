@@ -62,9 +62,15 @@ pip install -e ".[dev]"
 
 ### Install the Lua panel
 
-Copy or symlink the `panel/` directory into your REAPER scripts location.
-Add `reamind_panel.lua` as a startup action or run it manually from the
-Actions list.
+```bash
+python scripts/install_panel.py
+```
+
+This copies the panel files into REAPER's `Scripts/ReaMind/` directory.
+
+Then in REAPER: **Actions → Show action list → ReaScript: Load...** and
+select `reamind_panel.lua`. Optionally add it to `__startup.lua` for
+auto-launch.
 
 ### Launch
 
