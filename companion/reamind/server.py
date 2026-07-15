@@ -24,14 +24,14 @@ SYSTEM_PROMPT = (
 
 
 class Server:
-    def __init__(self, config: Config, provider: LLMProvider, bridge: Bridge) -> None:
+    def __init__(self, config: Config, provider: LLMProvider, bridge: Bridge, config_path: Path | None = None) -> None:
         self.config = config
         self.provider = provider
         self.bridge = bridge
         self.registry = build_registry()
         self.history: list[Message] = [Message(role="system", content=SYSTEM_PROMPT)]
         self._req_seq = 0
-        self._config_path: Path | None = None
+        self._config_path = config_path
         self.local_executor = build_local_executor(self.config, self._config_path, self.bridge.root)
 
     def make_reaper_executor(
@@ -120,7 +120,8 @@ def main(argv: list[str] | None = None) -> int:
     bridge_dir = args.bridge or config.bridge_dir or str(Path(__file__).resolve().parents[2] / "bridge")
     bridge = Bridge(Path(bridge_dir))
     provider = build_provider(config)
-    Server(config, provider, bridge).run()
+    config_path_arg = Path(args.config) if args.config else None
+    Server(config, provider, bridge, config_path=config_path_arg).run()
     return 0
 
 

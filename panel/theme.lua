@@ -26,11 +26,14 @@ end
 function M.apply(ctx, colors)
     local col = M.merge_colors(M.DEFAULTS, colors)
     local v = helpers.hex_to_native_color
-    if v(col.bg) then
-        reaper.ImGui_PushStyleColor(ctx, reaper.ImGui_Col_WindowBg(), v(col.bg))
-    end
-    if v(col.text) then
-        reaper.ImGui_PushStyleColor(ctx, reaper.ImGui_Col_Text(), v(col.text))
+    local style = reaper.ImGui_GetStyle(ctx)
+    if style then
+        if v(col.bg) then
+            style.Colors[reaper.ImGui_Col_WindowBg() + 1] = v(col.bg)
+        end
+        if v(col.text) then
+            style.Colors[reaper.ImGui_Col_Text() + 1] = v(col.text)
+        end
     end
     if col.font_scale and col.font_scale > 0 then
         local io = reaper.ImGui_GetIO(ctx)

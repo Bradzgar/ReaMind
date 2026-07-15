@@ -132,9 +132,6 @@ local function save_config(config_table)
   ipc.write_json_atomic(path, data)
 end
 
-local function apply_theme_to_style()
-end
-
 local function draw()
   local visible, open = reaper.ImGui_Begin(ctx, "ReaMind", true)
   if visible then
@@ -171,6 +168,9 @@ local function draw()
       if not settings_loaded and companion_started then
         local status = load_status()
         if status then
+          if status.current_model and status.current_model ~= "" then
+            current_model = status.current_model
+          end
           local server_names = {}
           for _, s in ipairs(status.servers or {}) do
             server_names[#server_names + 1] = s.name
@@ -222,10 +222,12 @@ local function draw()
       end
       reaper.ImGui_SameLine(ctx)
       if reaper.ImGui_Button(ctx, "Save Theme") then
+        local home = os.getenv("HOME") or os.getenv("USERPROFILE") or ""
+        local config_path = home .. "/.config/reamind/config.json"
         local conf = {
           theme = { preset = theme_preset_items[current_preset_idx + 1] or "dark", colors = current_colors }
         }
-        ipc.write_json_atomic(BRIDGE_ROOT .. "/../config_overlay.json", conf)
+        ipc.write_json_atomic(config_path, conf)
         theme_dirty = false
       end
     end

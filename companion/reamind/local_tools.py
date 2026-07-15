@@ -34,9 +34,10 @@ def update_provider_config(
     return {"ok": True, "result": {"message": "provider config updated"}}
 
 
-def write_status(bridge_root: Path, config: Config) -> None:
-    status_result = server_status()
-    servers = status_result["result"]["servers"]
+def write_status(bridge_root: Path, config: Config, servers: list | None = None) -> None:
+    if servers is None:
+        status_result = server_status()
+        servers = status_result["result"]["servers"]
     atomic_write_json(
         bridge_root / "status.json",
         {
@@ -53,7 +54,7 @@ def build_local_executor(
     def executor(call: ToolCall) -> dict:
         if call.name == "server_status":
             result = server_status()
-            write_status(bridge_root, config)
+            write_status(bridge_root, config, servers=result["result"]["servers"])
             return result
         if call.name == "update_provider_config":
             result = update_provider_config(call, config, config_path, config_save)
