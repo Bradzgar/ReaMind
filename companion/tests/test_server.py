@@ -97,11 +97,11 @@ def test_build_provider_from_config():
 
 def test_build_provider_auto_detect(monkeypatch):
     monkeypatch.setattr(
-        "reamind.server.detect_servers",
+        "reamind.provider_factory.detect_servers",
         lambda: [{"name": "ollama", "base_url": "http://localhost:11434"}],
     )
     monkeypatch.setattr(
-        "reamind.server.list_models",
+        "reamind.provider_factory.list_models",
         lambda base_url: ["qwen2.5:7b"],
     )
     config = Config(provider=ProviderConfig(base_url=None, model=None, tool_mode="auto"))
@@ -113,7 +113,7 @@ def test_build_provider_auto_detect(monkeypatch):
 
 
 def test_build_provider_no_server(monkeypatch):
-    monkeypatch.setattr("reamind.server.detect_servers", lambda: [])
+    monkeypatch.setattr("reamind.provider_factory.detect_servers", lambda: [])
     config = Config(provider=ProviderConfig(base_url=None, model=None))
     with pytest.raises(RuntimeError, match="No local model server found"):
         build_provider(config)
@@ -179,3 +179,42 @@ def test_server_registry_includes_construction_tools(tmp_path):
     assert "delete_track" in names
     assert "list_available_fx" in names
     assert "apply_template" in names
+
+
+def test_server_mcp_host_initialized(tmp_path):
+    from reamind.mcp_host import MCPHost
+
+    bridge = Bridge(tmp_path / "br")
+    bridge.ensure_dirs()
+    server = Server(default_config(), FakeProvider([]), bridge)
+    assert isinstance(server.mcp_host, MCPHost)
+    bridge.clear_stale()
+
+
+def test_rebuild_provider_preserves_history(tmp_path):
+    cfg = default_config()
+    cfg.provider.base_url = "http://localhost:11434"
+    cfg.provider.model = "llama3"
+    bridge = Bridge(tmp_path / "br")
+    bridge.ensure_dirs()
+    server = Server(cfg, FakeProvider([]), bridge)
+    server.history.append(Message(role="user", content="hello"))
+    old_len = len(server.history)
+    server.rebuild_provider()
+    assert len(server.history) == old_len
+    assert server.history[-1].content == "hello"
+    bridge.clear_stale()
+
+
+def test_mcp_servers_from_config_registered(tmp_path):
+    from reamind.mcp_host import MCPHost
+
+    cfg = default_config()
+    cfg.mcp_servers = []
+    bridge = Bridge(tmp_path / "br")
+    bridge.ensure_dirs()
+    server = Server(cfg, FakeProvider([]), bridge)
+    assert server.mcp_host is not None
+    assert isinstance(server.mcp_host, MCPHost)
+    assert len(server.mcp_host.list_servers()) == 0
+    bridge.clear_stale()

@@ -42,18 +42,18 @@ def update_provider_config(
     return {"ok": True, "result": {"message": "provider config updated"}}
 
 
-def write_status(bridge_root: Path, config: Config, servers: list | None = None) -> None:
+def write_status(bridge_root: Path, config: Config, servers: list | None = None, mcp_servers: list | None = None) -> None:
     if servers is None:
         status_result = server_status()
         servers = status_result["result"]["servers"]
-    atomic_write_json(
-        bridge_root / "status.json",
-        {
-            "servers": servers,
-            "current_model": config.provider.model,
-            "current_base_url": config.provider.base_url,
-        },
-    )
+    status_dict = {
+        "servers": servers,
+        "current_model": config.provider.model,
+        "current_base_url": config.provider.base_url,
+    }
+    if mcp_servers is not None:
+        status_dict["mcp_servers"] = mcp_servers
+    atomic_write_json(bridge_root / "status.json", status_dict)
 
 
 def build_local_executor(

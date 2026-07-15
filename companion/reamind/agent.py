@@ -16,6 +16,7 @@ def run_turn(
     max_iterations: int = 8,
     local_executor: Callable[[ToolCall], dict] | None = None,
     confirm_destructive: bool = True,
+    mcp_executor: Callable[[ToolCall], dict] | None = None,
 ) -> list[Message]:
     for _ in range(max_iterations):
         result = provider.chat(messages, registry.specs())
@@ -27,7 +28,7 @@ def run_turn(
 
         messages.append(Message(role="assistant", content=result.text or "", tool_calls=result.tool_calls))
         for call in result.tool_calls:
-            out = _execute_call(registry, call, reaper_executor, local_executor, confirm_destructive)
+            out = _execute_call(registry, call, reaper_executor, local_executor, confirm_destructive, mcp_executor)
             messages.append(
                 Message(
                     role="tool",
@@ -49,6 +50,7 @@ def _execute_call(
     reaper_executor: Callable[[ToolCall], dict],
     local_executor: Callable[[ToolCall], dict] | None = None,
     confirm_destructive: bool = True,
+    mcp_executor: Callable[[ToolCall], dict] | None = None,
 ) -> dict:
     try:
         spec = registry.get(call.name)
@@ -73,4 +75,6 @@ def _execute_call(
         return reaper_executor(call)
     if spec.executor == "local" and local_executor is not None:
         return local_executor(call)
+    if spec.executor == "mcp" and mcp_executor is not None:
+        return mcp_executor(call)
     return {"ok": False, "error": f"no executor for tag: {spec.executor}"}

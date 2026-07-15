@@ -11,6 +11,7 @@ from .agent import run_turn
 from .bridge import Bridge
 from .config import Config, load
 from .local_tools import build_library_executor, build_local_executor, write_status
+from .mcp_host import MCPHost
 from .providers.base import LLMProvider, Message, ToolCall
 from .providers.local import LocalProvider
 from .provider_factory import build_provider
@@ -39,6 +40,8 @@ class Server:
         lib_reg = build_library_registry()
         for spec in lib_reg.specs():
             self.registry.register(spec)
+        self.mcp_host = MCPHost()
+        self._init_mcp()
         self._quarantine_base = Path(self.config.quarantine_dir)
         self.history: list[Message] = [Message(role="system", content=SYSTEM_PROMPT)]
         self._req_seq = 0
@@ -50,17 +53,33 @@ class Server:
             self.config, self._config_path, self.bridge.root, reaper_executor
         )
         lib_exec = build_library_executor(self.config, self._quarantine_base, self._config_path)
+        mcp = self.mcp_host.execute if self.mcp_host else lambda c: {"ok": False, "error": "no MCP host"}
 
         def merged(call: ToolCall) -> dict:
             result = existing(call)
             if result.get("ok") is False and "unknown" in str(result.get("error", "")):
-                return lib_exec(call)
+                result = lib_exec(call)
+                if result.get("ok") is False and "unknown" in str(result.get("error", "")):
+                    return mcp(call)
             return result
 
         return merged
 
     def _rebuild_local_executor(self, reaper_executor=None):
         self.local_executor = self._build_merged_local_executor(reaper_executor)
+
+    def rebuild_provider(self) -> None:
+        self.provider = build_provider(self.config, check_live=False)
+        self._rebuild_local_executor()
+
+    def _init_mcp(self) -> None:
+        for mcp_config in self.config.mcp_servers:
+            try:
+                client = self.mcp_host.add_server(mcp_config.name, mcp_config.to_dict())
+                for spec in client.list_tools():
+                    self.registry.register(spec)
+            except Exception:
+                pass
 
     def make_reaper_executor(
         self,
@@ -96,6 +115,7 @@ class Server:
             on_text=lambda t: self.bridge.push_chat("assistant", t, done=True),
             max_iterations=self.config.safety.max_tool_iterations,
             local_executor=self.local_executor,
+            mcp_executor=self.mcp_host.execute,
         )
 
     def tick(self) -> None:
@@ -110,7 +130,8 @@ class Server:
         interval: float = 0.1,
     ) -> None:
         self.bridge.clear_stale()
-        write_status(self.bridge.root, self.config)
+        mcp_srv = [{"name": s["name"], "connected": s["connected"], "tool_count": s["tool_count"]} for s in self.mcp_host.list_servers()]
+        write_status(self.bridge.root, self.config, mcp_servers=mcp_srv)
         self.bridge.write_session(uuid.uuid4().hex)
         self._scan_fx()
         stop = stop or (lambda: False)
