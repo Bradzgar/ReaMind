@@ -166,7 +166,7 @@ local function draw()
               available_models[#available_models + 1] = { name = m, base_url = s.base_url }
             end
           end
-          server_display = table.concat(server_names, ", ") or "none found"
+          server_display = #server_names > 0 and table.concat(server_names, ", ") or "none found"
           settings_loaded = true
         end
       end
