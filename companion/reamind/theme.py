@@ -55,16 +55,17 @@ class Theme:
     def from_dict(cls, d: dict) -> "Theme":
         d = d or {}
         c = d.get("colors") or {}
+        dflt = ThemeColors()
         return cls(
             preset=d.get("preset", "dark"),
             colors=ThemeColors(
-                bg=c.get("bg", "#1e1e1e"),
-                text=c.get("text", "#d4d4d4"),
-                accent=c.get("accent", "#569cd6"),
-                user_bubble=c.get("user_bubble", "#2d5a27"),
-                assistant_bubble=c.get("assistant_bubble", "#1e3a5f"),
-                error=c.get("error", "#f44747"),
-                font_scale=c.get("font_scale", 1.0),
+                bg=c.get("bg", dflt.bg),
+                text=c.get("text", dflt.text),
+                accent=c.get("accent", dflt.accent),
+                user_bubble=c.get("user_bubble", dflt.user_bubble),
+                assistant_bubble=c.get("assistant_bubble", dflt.assistant_bubble),
+                error=c.get("error", dflt.error),
+                font_scale=c.get("font_scale", dflt.font_scale),
             ),
         )
 
