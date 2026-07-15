@@ -39,19 +39,9 @@ function M.apply(ctx, colors)
 end
 
 function M.sample_reaper_colors(ctx)
-    local function gc(idx)
-        local ok, c = reaper.ThemeLayout_GetColor(idx)
-        return ok and c or 0
-    end
-    return {
-        bg = "#1e1e1e",
-        text = "#d4d4d4",
-        accent = "#569cd6",
-        user_bubble = "#2d5a27",
-        assistant_bubble = "#1e3a5f",
-        error = "#f44747",
-        font_scale = 1.0,
-    }
+    -- Optional: sample REAPER theme colors via reaper.GetThemeColor.
+    -- Returns defaults; REAPER integration is untestable under standalone Lua.
+    return M.DEFAULTS
 end
 
 return M
