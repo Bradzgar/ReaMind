@@ -10,6 +10,8 @@ class ToolSpec:
     description: str
     parameters: dict
     executor: str
+    destructive: bool = False
+    return_confirmation: bool = False
 
     def to_openai(self) -> dict:
         return {
