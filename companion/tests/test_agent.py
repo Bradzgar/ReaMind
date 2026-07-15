@@ -106,3 +106,99 @@ def test_max_iterations_guard():
         max_iterations=3,
     )
     assert texts and "max tool iterations" in texts[-1]
+
+
+def test_destructive_tool_blocked_without_confirmation():
+    from reamind.providers.base import ToolSpec
+    from reamind.tools.registry import ToolRegistry
+
+    tool = ToolSpec("delete_track", "d", {
+        "type": "object",
+        "properties": {"track_guid": {"type": "string"}},
+        "required": ["track_guid"],
+    }, "reaper", destructive=True, return_confirmation=True)
+    reg = ToolRegistry()
+    reg.register(tool)
+
+    reaper_calls = []
+
+    provider = FakeProvider(
+        [
+            ChatResult(text=None, tool_calls=[ToolCall(id="c1", name="delete_track", arguments={"track_guid": "{xyz}"})]),
+            ChatResult(text="understood", tool_calls=[]),
+        ]
+    )
+
+    messages = [Message(role="user", content="delete track xyz")]
+    run_turn(
+        provider, reg, messages,
+        reaper_executor=lambda c: reaper_calls.append(c) or {"ok": True, "result": {}},
+        on_text=lambda t: None,
+        confirm_destructive=True,
+    )
+
+    assert len(reaper_calls) == 0, "destructive tool should be blocked"
+
+
+def test_destructive_tool_allowed_with_confirmation():
+    from reamind.providers.base import ToolSpec
+    from reamind.tools.registry import ToolRegistry
+
+    tool = ToolSpec("delete_track", "d", {
+        "type": "object",
+        "properties": {"track_guid": {"type": "string"}},
+        "required": ["track_guid"],
+    }, "reaper", destructive=True, return_confirmation=True)
+    reg = ToolRegistry()
+    reg.register(tool)
+
+    reaper_calls = []
+
+    provider = FakeProvider(
+        [
+            ChatResult(text=None, tool_calls=[ToolCall(id="c1", name="delete_track", arguments={"track_guid": "{xyz}", "confirm_ok": True})]),
+            ChatResult(text="done", tool_calls=[]),
+        ]
+    )
+
+    messages = [Message(role="user", content="delete track xyz")]
+    run_turn(
+        provider, reg, messages,
+        reaper_executor=lambda c: reaper_calls.append(c) or {"ok": True, "result": {}},
+        on_text=lambda t: None,
+        confirm_destructive=True,
+    )
+
+    assert len(reaper_calls) == 1
+    assert reaper_calls[0].name == "delete_track"
+
+
+def test_confirm_disabled_lets_destructive_through():
+    from reamind.providers.base import ToolSpec
+    from reamind.tools.registry import ToolRegistry
+
+    tool = ToolSpec("delete_track", "d", {
+        "type": "object",
+        "properties": {"track_guid": {"type": "string"}},
+        "required": ["track_guid"],
+    }, "reaper", destructive=True)
+    reg = ToolRegistry()
+    reg.register(tool)
+
+    reaper_calls = []
+
+    provider = FakeProvider(
+        [
+            ChatResult(text=None, tool_calls=[ToolCall(id="c1", name="delete_track", arguments={"track_guid": "{xyz}"})]),
+            ChatResult(text="done", tool_calls=[]),
+        ]
+    )
+
+    run_turn(
+        provider, reg, [Message(role="user", content="delete")],
+        reaper_executor=lambda c: reaper_calls.append(c) or {"ok": True, "result": {}},
+        on_text=lambda t: None,
+        confirm_destructive=False,
+    )
+
+    assert len(reaper_calls) == 1

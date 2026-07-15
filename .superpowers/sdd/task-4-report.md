@@ -1,29 +1,45 @@
-### Task 4 Report: Lua theme module (panel/theme.lua)
+# Task 4 Report: Agent confirmation gating
 
-**What I implemented:**
-- `panel/theme.lua` — Lua theme module exporting `DEFAULTS`, `merge_colors`, `apply`, and `sample_reaper_colors`.
-- `panel/test/theme_spec.lua` — Test suite covering DEFAULTS values, merge_colors (with overrides, nil-safety), and hex_to_native_color integration.
+## Summary
 
-**TDD Evidence:**
-- RED: `module 'theme' not found` on first test run (before creating theme.lua).
-- GREEN: `passed=11 failed=0` on second test run (after creating theme.lua).
+Added confirmation gating for destructive tools to the agent loop. When a tool has both `destructive=True` and `return_confirmation=True`, the agent blocks execution unless `confirm_ok: true` is present in the tool call arguments. The `confirm_destructive` parameter on `run_turn` allows disabling this gating globally.
 
-**Files changed:**
-- `panel/theme.lua` (57 lines, new)
-- `panel/test/theme_spec.lua` (35 lines, new)
+## Changes
 
-**Self-review findings:**
-- No issues. Implementation matches brief verbatim. Test adapted to use existing `test.run` convention (`t.eq` instead of brief's `speaker.eq`). All 11 assertions pass. merge_colors correctly handles nil-safe on both base and overrides arguments. DEFAULTS table has all required keys. apply and sample_reaper_colors reference reaper globals as documented.
+### `companion/reamind/agent.py`
+- `run_turn()`: Added `confirm_destructive: bool = True` parameter, threaded through to `_execute_call`.
+- `_execute_call()`: Added `confirm_destructive: bool = True` parameter. Before dispatching to an executor, checks if `spec.destructive and spec.return_confirmation and confirm_destructive` — if all true and `confirm_ok` is not in call args, returns `{"ok": False, "confirm_required": True, ...}` to block execution.
 
-## Fix Review Finding (Round 1)
+### `companion/tests/test_agent.py`
+Added 3 new tests:
+- `test_destructive_tool_blocked_without_confirmation` — destructive tool with `confirm_destructive=True` is blocked when `confirm_ok` absent
+- `test_destructive_tool_allowed_with_confirmation` — destructive tool proceeds when `confirm_ok: true` present in args
+- `test_confirm_disabled_lets_destructive_through` — destructive tool proceeds when `confirm_destructive=False`
 
-**Issue:** `sample_reaper_colors` contained a dead `gc` inner function that was defined but never called. The function returned hardcoded DEFAULTS instead of actually sampling REAPER theme colors.
+## TDD Evidence
 
-**Fix:** Replaced the function body with a clean stub that simply returns `M.DEFAULTS`, with a comment documenting that REAPER integration is untestable under standalone Lua.
-
-**Test command:** `cd panel && lua test/theme_spec.lua`
-
-**Test output:**
+### Step 1: Write failing tests
 ```
-passed=11 failed=0
+$ .venv/bin/python -m pytest tests/test_agent.py -v -k "destructive or confirm"
+3 failed — TypeError: run_turn() got an unexpected keyword argument 'confirm_destructive'
+```
+
+### Step 2: Implement
+Added `confirm_destructive` parameter to `run_turn` and `_execute_call`, with confirmation gating logic.
+
+### Step 3: Verify individual tests
+```
+$ .venv/bin/python -m pytest tests/test_agent.py -v -k "destructive or confirm"
+3 passed
+```
+
+### Step 4: Full suite
+```
+$ .venv/bin/python -m pytest -v
+74 passed in 0.24s
+```
+
+## Commit
+```
+feat: confirmation gating for destructive tools
 ```

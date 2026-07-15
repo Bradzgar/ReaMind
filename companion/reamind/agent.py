@@ -15,6 +15,7 @@ def run_turn(
     on_text: Callable[[str], None],
     max_iterations: int = 8,
     local_executor: Callable[[ToolCall], dict] | None = None,
+    confirm_destructive: bool = True,
 ) -> list[Message]:
     for _ in range(max_iterations):
         result = provider.chat(messages, registry.specs())
@@ -26,7 +27,7 @@ def run_turn(
 
         messages.append(Message(role="assistant", content=result.text or "", tool_calls=result.tool_calls))
         for call in result.tool_calls:
-            out = _execute_call(registry, call, reaper_executor, local_executor)
+            out = _execute_call(registry, call, reaper_executor, local_executor, confirm_destructive)
             messages.append(
                 Message(
                     role="tool",
@@ -47,6 +48,7 @@ def _execute_call(
     call: ToolCall,
     reaper_executor: Callable[[ToolCall], dict],
     local_executor: Callable[[ToolCall], dict] | None = None,
+    confirm_destructive: bool = True,
 ) -> dict:
     try:
         spec = registry.get(call.name)
@@ -56,6 +58,17 @@ def _execute_call(
         registry.validate_args(call.name, call.arguments)
     except ValueError as e:
         return {"ok": False, "error": str(e)}
+
+    if spec.destructive and spec.return_confirmation and confirm_destructive:
+        if not (call.arguments or {}).get("confirm_ok"):
+            return {
+                "ok": False,
+                "confirm_required": True,
+                "tool": call.name,
+                "args": call.arguments,
+                "message": f"Destructive action '{call.name}'. Add confirm_ok: true to proceed.",
+            }
+
     if spec.executor == "reaper":
         return reaper_executor(call)
     if spec.executor == "local" and local_executor is not None:
