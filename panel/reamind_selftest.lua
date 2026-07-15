@@ -23,3 +23,11 @@ if ok2 and r2.tracks and r2.tracks[1] then
 else
   reaper.ShowConsoleMsg("[SKIP] get_track (no tracks in project)\n")
 end
+
+-- theme module
+local theme = require("theme")
+if theme.DEFAULTS and theme.DEFAULTS.bg and theme.DEFAULTS.text then
+  reaper.ShowConsoleMsg("[PASS] theme: defaults loaded\n")
+else
+  reaper.ShowConsoleMsg("[FAIL] theme: defaults missing\n")
+end

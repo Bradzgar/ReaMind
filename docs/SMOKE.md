@@ -21,3 +21,12 @@ Prereqs:
 - [ ] Ask: "how many tracks are in my project?" → assistant calls get_project_summary and answers with the correct count.
 - [ ] Add a track named "Kick", ask: "what tracks do I have?" → assistant lists it by name.
 - [ ] Kill the companion process; panel shows a "companion not responding — Restart" affordance (or relaunch), and works again after restart.
+
+## Theming & Onboarding Smoke
+
+1. **Settings panel opens:** Launch panel in REAPER. Click "Settings" header. See server status and theme controls.
+2. **Server detection:** Panel shows detected servers. Refresh button re-scans.
+3. **Theme preset:** Select "light" from the preset combo. Colors change immediately.
+4. **Custom color:** Edit the "bg" field to "#222222", click Apply. Background changes.
+5. **Font scale:** Drag the slider to 1.5. Text scales up.
+6. **Save theme:** Edit a color, click "Save Theme". Restart panel — verify the saved theme is applied.
