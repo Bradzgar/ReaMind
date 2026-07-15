@@ -4,7 +4,17 @@ package.path = SCRIPT_DIR .. "?.lua;" .. package.path
 local ipc = require("ipc")
 local helpers = require("helpers")
 local tools = require("tools.readonly")
+local con_tools = require("tools.construction")
+local fx_scanner = require("tools.fx_scanner")
 local theme = require("theme")
+
+local all_tools = {}
+for k, v in pairs(tools) do all_tools[k] = v end
+for k, v in pairs(con_tools) do all_tools[k] = v end
+all_tools["list_available_fx"] = fx_scanner.list_available_fx
+all_tools.tool_specs = {}
+for k, v in pairs(tools.tool_specs or {}) do all_tools.tool_specs[k] = v end
+for k, v in pairs(con_tools.tool_specs or {}) do all_tools.tool_specs[k] = v end
 
 local BRIDGE_ROOT = SCRIPT_DIR .. "../bridge"
 
@@ -81,7 +91,7 @@ local function drain_chat()
 end
 
 local function run_tool(name, args)
-  local fn = tools[name]
+  local fn = all_tools[name]
   if not fn then return false, "unknown tool: " .. tostring(name) end
   reaper.Undo_BeginBlock()
   local results = { pcall(fn, args) }
@@ -101,7 +111,7 @@ local function poll_requests()
     local req = ipc.read_json(path)
     if req and req.id and not processed_ids[req.id] then
       processed_ids[req.id] = true
-      local args = helpers.coerce_args(tools.tool_specs[req.tool] or {}, req.args or {})
+      local args = helpers.coerce_args(all_tools.tool_specs[req.tool] or {}, req.args or {})
       local ok, result = run_tool(req.tool, args)
       ipc.write_result(BRIDGE_ROOT, req.id, ok, result)
     end
