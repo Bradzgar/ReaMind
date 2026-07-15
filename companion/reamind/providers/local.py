@@ -110,5 +110,9 @@ def detect_servers(probe=_probe) -> list[dict]:
 
 
 def list_models(base_url: str, fetch=_get_json) -> list[str]:
-    data = fetch(base_url.rstrip("/") + "/v1/models")
-    return [m["id"] for m in data.get("data", [])]
+    try:
+        data = fetch(base_url.rstrip("/") + "/v1/models")
+        items = data.get("data", [])
+        return [m["id"] for m in items if isinstance(m, dict) and "id" in m]
+    except Exception:
+        return []

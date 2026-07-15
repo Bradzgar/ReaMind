@@ -28,13 +28,17 @@ def build_provider(config: Config, check_live: bool = False) -> LLMProvider:
         base_url = servers[0]["base_url"]
         model = p.model
         if not model:
-            models = list_models(base_url)
-            if not models:
-                raise RuntimeError(
-                    f"No models available at {base_url}. Pull a tool-capable model "
-                    "(e.g. `ollama pull qwen2.5:7b`)."
-                )
-            model = models[0]
+            try:
+                models = list_models(base_url)
+            except Exception:
+                models = []
+            if models:
+                model = models[0]
+        if not model:
+            raise RuntimeError(
+                f"No model configured. Set provider.model in config, or pull a model "
+                f"at {base_url} (e.g. `ollama pull qwen2.5:7b`)."
+            )
         provider = LocalProvider(
             base_url=base_url,
             model=model,
