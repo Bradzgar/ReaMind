@@ -1,6 +1,5 @@
 import json
 import sys
-import time
 
 import pytest
 
@@ -30,7 +29,7 @@ while True:
 
 class TestStdioTransport:
     def test_start_and_stop(self):
-        t = StdioTransport(sys.executable, ["-c", ""])
+        t = StdioTransport(sys.executable, ["-c", "import time; time.sleep(60)"])
         t.start()
         assert t.alive()
         t.stop()
@@ -60,15 +59,18 @@ class TestStdioTransport:
     def test_recv_raises_if_process_exited(self):
         t = StdioTransport(sys.executable, ["-c", "print('no json')"])
         t.start()
-        time.sleep(0.5)
+        t._process.wait()
         with pytest.raises(RuntimeError):
             t.recv()
 
     def test_env_passed_to_subprocess(self):
-        t = StdioTransport(sys.executable, ["-c", "import os; print(os.environ['REAMIND_TEST'], end='')"],
-                           env={"REAMIND_TEST": "yes"})
+        t = StdioTransport(sys.executable, [
+            "-c",
+            "import os, json, sys; "
+            "sys.stdout.write(json.dumps({'jsonrpc': '2.0', 'id': 1, 'result': os.environ['REAMIND_TEST']}) + '\\n'); "
+            "sys.stdout.flush()"
+        ], env={"REAMIND_TEST": "yes"})
         t.start()
-        time.sleep(0.3)
-        output = t._process.stdout.read() if t._process and t._process.stdout else ""
+        resp = t.recv()
+        assert resp["result"] == "yes"
         t.stop()
-        assert output == "yes"
