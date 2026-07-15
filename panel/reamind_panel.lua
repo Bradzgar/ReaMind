@@ -143,6 +143,7 @@ local function save_config(config_table)
 end
 
 local function draw()
+  reaper.ImGui_SetNextWindowSize(ctx, 500, 400, reaper.ImGui_Cond_FirstUseEver())
   local visible, open = reaper.ImGui_Begin(ctx, "ReaMind", true)
   if visible then
     theme.apply(ctx, current_colors)
@@ -198,7 +199,7 @@ local function draw()
       end
       reaper.ImGui_Separator(ctx)
       reaper.ImGui_Text(ctx, "Theme")
-      local preset_changed, new_preset = reaper.ImGui_Combo(ctx, "Preset", current_preset_idx, table.concat(theme_preset_items, "\0"))
+      local preset_changed, new_preset = reaper.ImGui_Combo(ctx, "Preset", current_preset_idx, table.concat(theme_preset_items, "\0") .. "\0")
       if preset_changed then
         current_preset_idx = new_preset
         local preset_name = theme_preset_items[new_preset + 1]
