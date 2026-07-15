@@ -13,7 +13,6 @@ from .library.quarantine import (
     unnest_project,
 )
 from .library.scanner import scan_root
-from .provider_factory import build_provider
 from .providers.base import ToolCall
 from .providers.local import detect_servers, list_models
 
@@ -115,7 +114,7 @@ def build_local_executor(
         if call.name == "connect_mcp_server" and mcp_host is not None:
             args = call.arguments or {}
             name = args.get("name", "")
-            if name in mcp_host._clients:
+            if any(s["name"] == name for s in mcp_host.list_servers()):
                 return {"ok": False, "error": f"MCP server '{name}' is already connected"}
             mcp_config = {"transport": args.get("transport", "stdio")}
             if mcp_config["transport"] == "sse":

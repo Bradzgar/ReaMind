@@ -43,3 +43,25 @@ $ .venv/bin/python -m pytest -v
 ```
 feat: confirmation gating for destructive tools
 ```
+
+---
+
+## Task 4 Review Fixes — MCP Host
+
+**Commit:** `d30e5de` — `fix: add transport key to list_servers, fix prefix routing bug, defensive fixes`
+
+### Fixes applied to `companion/reamind/mcp_host.py`
+
+| # | Severity | Issue | Fix |
+|---|----------|-------|-----|
+| 1 | CRITICAL | Missing `"transport"` key in `list_servers()` | Added `"transport": type(c._transport).__name__` |
+| 2 | IMPORTANT | Prefix routing bug in `execute()` — `startswith()` could route `"ab__tool"` to client `"a"` | Sort clients by `-len(c.name)` so longer prefixes match first |
+| 3 | MINOR | Fragile error detection `"error" in str(resp)` | Changed to `"error" in resp` (dict key check) |
+| 4 | MINOR | Silent tool loss — `list_tools()` unconditionally resets `self.tools = []` | Build into local `tools` list, assign `self.tools = tools` at end |
+| 5 | MINOR | Overly broad `except Exception` in `call_tool` | Changed to `except (OSError, RuntimeError, ValueError, JSONRPCError)` |
+
+### Test results
+```
+12/12 mcp_host tests pass (0.05s)
+26/26 combined MCP protocol + host tests pass (0.06s)
+```
