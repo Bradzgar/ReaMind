@@ -69,6 +69,30 @@ def test_missing_required_arg_errors_without_executor():
     assert json.loads(tool_msg.content)["ok"] is False
 
 
+def test_local_executor_is_called_for_local_tag():
+    from reamind.providers.base import ToolSpec
+    from reamind.tools.registry import ToolRegistry
+
+    tool = ToolSpec("local_thing", "d", {"type": "object", "properties": {}}, "local")
+    reg = ToolRegistry()
+    reg.register(tool)
+
+    provider = FakeProvider(
+        [
+            ChatResult(text=None, tool_calls=[ToolCall(id="c1", name="local_thing", arguments={})]),
+            ChatResult(text="done", tool_calls=[]),
+        ]
+    )
+    calls = []
+    run_turn(
+        provider, reg, [Message(role="user", content="x")],
+        reaper_executor=lambda c: {"ok": True, "result": {}},
+        on_text=lambda t: None,
+        local_executor=lambda c: calls.append(c.name) or {"ok": True, "result": {}},
+    )
+    assert calls == ["local_thing"]
+
+
 def test_max_iterations_guard():
     loop = [ChatResult(text=None, tool_calls=[ToolCall(id="c", name="list_tracks", arguments={})]) for _ in range(10)]
     provider = FakeProvider(loop)

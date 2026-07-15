@@ -139,3 +139,28 @@ def test_main_wiring(monkeypatch, tmp_path):
     result = main(["--bridge", str(tmp_path / "bridge"), "--config", str(config_file)])
     assert result == 0
     assert state["run_called"] is True
+
+
+def test_server_writes_status_on_run(tmp_path, monkeypatch):
+    from reamind.jsonio import read_json
+
+    monkeypatch.setattr(
+        "reamind.local_tools.detect_servers", lambda: [{"name": "o", "base_url": "http://x:11434"}]
+    )
+    monkeypatch.setattr(
+        "reamind.local_tools.list_models", lambda url, fetch=None: ["m"]
+    )
+
+    config = default_config()
+    config.provider.model = "m"
+    config.provider.base_url = "http://x:11434"
+    bridge = Bridge(tmp_path / "br")
+    bridge.ensure_dirs()
+    provider = FakeProvider([])
+    server = Server(config, provider, bridge)
+
+    server.run(stop=lambda: True)
+
+    s = read_json(bridge.root / "status.json")
+    assert s["current_model"] == "m"
+    assert len(s["servers"]) == 1

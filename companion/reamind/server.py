@@ -10,6 +10,7 @@ from typing import Callable
 from .agent import run_turn
 from .bridge import Bridge
 from .config import Config, load
+from .local_tools import build_local_executor, write_status
 from .providers.base import LLMProvider, Message, ToolCall
 from .providers.local import LocalProvider, detect_servers, list_models
 from .tools.reaper_readonly import build_registry
@@ -30,6 +31,8 @@ class Server:
         self.registry = build_registry()
         self.history: list[Message] = [Message(role="system", content=SYSTEM_PROMPT)]
         self._req_seq = 0
+        self._config_path: Path | None = None
+        self.local_executor = build_local_executor(self.config, self._config_path, self.bridge.root)
 
     def make_reaper_executor(
         self,
@@ -60,6 +63,7 @@ class Server:
             executor,
             on_text=lambda t: self.bridge.push_chat("assistant", t, done=True),
             max_iterations=self.config.safety.max_tool_iterations,
+            local_executor=self.local_executor,
         )
 
     def tick(self) -> None:
@@ -74,6 +78,7 @@ class Server:
         interval: float = 0.1,
     ) -> None:
         self.bridge.clear_stale()
+        write_status(self.bridge.root, self.config)
         self.bridge.write_session(uuid.uuid4().hex)
         stop = stop or (lambda: False)
         while not stop():
