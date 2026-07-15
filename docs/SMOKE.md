@@ -1,15 +1,18 @@
 # ReaMind Manual Smoke Checklist (Foundation)
 
 Prereqs:
-- `cd companion && python -m venv .venv && .venv/bin/pip install -e ".[dev]"`
+- **Linux/macOS:** `cd companion && python -m venv .venv && .venv/bin/pip install -e ".[dev]"`
+- **Windows:** `cd companion && python -m venv .venv && .venv\Scripts\pip install -e ".[dev]"`
 - A local model server running with a tool-capable model (e.g. `ollama pull qwen2.5:7b`).
 - ReaImGui installed (ReaPack).
 
 ## Companion unit tests
-- [ ] `cd companion && .venv/bin/python -m pytest -v` → all pass.
+- [ ] **Linux/macOS:** `cd companion && .venv/bin/python -m pytest -v` → all pass.
+- [ ] **Windows:** `cd companion && .venv\Scripts\python -m pytest -v` → all pass.
 
 ## Lua helper tests
-- [ ] `cd panel && lua test/json_spec.lua && lua test/helpers_spec.lua` → `failed=0`.
+- [ ] **Linux/macOS:** `cd panel && lua test/json_spec.lua && lua test/helpers_spec.lua` → `failed=0`.
+- [ ] **Windows:** `cd panel && lua test\json_spec.lua && lua test\helpers_spec.lua` → `failed=0`.
 
 ## Selftest action (ReaScript path, no LLM)
 - [ ] Load `panel/reamind_selftest.lua` as an action and run it.
@@ -46,7 +49,7 @@ Prereqs:
 
 ## Library Management Smoke
 
-1. **Scan empty root:** `scan_root("/tmp")` — returns project_count=0, no findings.
+1. **Scan empty root:** `scan_root(PATH_TO_EMPTY_DIR)` — returns project_count=0, no findings. (Use any empty directory.)
 2. **Scan with project:** `scan_root("/path/to/project")` — returns counts for each finding type.
 3. **Findings detail:** `list_findings("/path/to/project", "regenerable")` — returns only regenerable findings.
 4. **File details:** `get_file_details("/path/to/file.wav")` — returns hash, size, modified time.

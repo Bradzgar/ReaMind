@@ -32,6 +32,8 @@ class Bridge:
                 f.unlink()
             except FileNotFoundError:
                 pass
+            except PermissionError:
+                pass
         self._chat_seq = 0
         self.ensure_dirs()
 
@@ -84,5 +86,7 @@ class Bridge:
             try:
                 f.unlink()
             except FileNotFoundError:
+                pass
+            except PermissionError:
                 pass
         return data

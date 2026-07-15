@@ -18,6 +18,8 @@ for k, v in pairs(con_tools.tool_specs or {}) do all_tools.tool_specs[k] = v end
 
 local BRIDGE_ROOT = SCRIPT_DIR .. "../bridge"
 
+local SEP = package.config:sub(1, 1)
+
 local is_windows = reaper.GetOS():match("^Win")
 local COMPANION_PY
 if is_windows then
@@ -51,7 +53,7 @@ local current_preset_idx = 0
 
 local function ensure_dirs()
   for _, sub in ipairs({ "inbox", "chat", "requests", "results" }) do
-    reaper.RecursiveCreateDirectory(BRIDGE_ROOT .. "/" .. sub, 0)
+    reaper.RecursiveCreateDirectory(BRIDGE_ROOT .. SEP .. sub, 0)
   end
 end
 
@@ -79,13 +81,13 @@ local function drain_chat()
   local dir = BRIDGE_ROOT .. "/chat"
   for _, name in ipairs(list_files(dir)) do
     if not name:match("%.json$") then goto continue end
-    local path = dir .. "/" .. name
+    local path = dir .. SEP .. name
     local msg = ipc.read_json(path)
     if msg and not seen_chat[msg.seq] then
       seen_chat[msg.seq] = true
       messages[#messages + 1] = msg
     end
-    os.remove(path)
+    pcall(os.remove, path)
     ::continue::
   end
 end
@@ -104,10 +106,10 @@ local function run_tool(name, args)
 end
 
 local function poll_requests()
-  local dir = BRIDGE_ROOT .. "/requests"
+  local dir = BRIDGE_ROOT .. SEP .. "requests"
   for _, name in ipairs(list_files(dir)) do
     if not name:match("%.json$") then goto continue end
-    local path = dir .. "/" .. name
+    local path = dir .. SEP .. name
     local req = ipc.read_json(path)
     if req and req.id and not processed_ids[req.id] then
       processed_ids[req.id] = true
@@ -115,7 +117,7 @@ local function poll_requests()
       local ok, result = run_tool(req.tool, args)
       ipc.write_result(BRIDGE_ROOT, req.id, ok, result)
     end
-    os.remove(path)
+    pcall(os.remove, path)
     ::continue::
   end
 end
@@ -232,8 +234,13 @@ local function draw()
       end
       reaper.ImGui_SameLine(ctx)
       if reaper.ImGui_Button(ctx, "Save Theme") then
-        local home = os.getenv("HOME") or os.getenv("USERPROFILE") or ""
-        local config_path = home .. "/.config/reamind/config.json"
+        local config_path
+        if is_windows then
+          config_path = (os.getenv("APPDATA") or (os.getenv("USERPROFILE") or "") .. "/AppData/Roaming") .. "/reamind/config.json"
+        else
+          local home = os.getenv("HOME") or os.getenv("USERPROFILE") or ""
+          config_path = home .. "/.config/reamind/config.json"
+        end
         local conf = {
           theme = { preset = theme_preset_items[current_preset_idx + 1] or "dark", colors = current_colors }
         }

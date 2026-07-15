@@ -7,11 +7,16 @@ from pathlib import Path
 from .jsonio import atomic_write_json, read_json
 from .theme import Theme, default_theme
 
+DEFAULT_CONFIG_PATH: Path
+_quarantine_default: str
 if os.name == "nt":
     appdata = os.environ.get("APPDATA")
     DEFAULT_CONFIG_PATH = Path(appdata) / "reamind" / "config.json" if appdata else Path.home() / "reamind" / "config.json"
+    _qparent = Path(appdata) if appdata else Path.home() / "AppData" / "Roaming"
+    _quarantine_default = str(_qparent / "reamind" / "quarantine")
 else:
     DEFAULT_CONFIG_PATH = Path.home() / ".config" / "reamind" / "config.json"
+    _quarantine_default = "~/.config/reamind/quarantine"
 
 
 @dataclass
@@ -105,7 +110,7 @@ class Config:
     provider: ProviderConfig = field(default_factory=ProviderConfig)
     theme: Theme = field(default_factory=default_theme)
     projects_roots: list[str] = field(default_factory=list)
-    quarantine_dir: str = "~/.config/reamind/quarantine"
+    quarantine_dir: str = _quarantine_default
     mcp_servers: list[MCPConfig] = field(default_factory=list)
     templates_dir: str = ""
     safety: SafetyConfig = field(default_factory=SafetyConfig)
@@ -130,7 +135,7 @@ class Config:
             provider=ProviderConfig.from_dict(d.get("provider", {})),
             theme=Theme.from_dict(d.get("theme", {})),
             projects_roots=d.get("projects_roots", []),
-            quarantine_dir=d.get("quarantine_dir", "~/.config/reamind/quarantine"),
+            quarantine_dir=d.get("quarantine_dir", _quarantine_default),
             mcp_servers=[MCPConfig.from_dict(s) for s in d.get("mcp_servers", [])],
             templates_dir=d.get("templates_dir", ""),
             safety=SafetyConfig.from_dict(d.get("safety", {})),

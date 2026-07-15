@@ -8,6 +8,7 @@ function M.write_json_atomic(path, tbl)
   local f = assert(io.open(tmp, "w"))
   f:write(json.encode(tbl))
   f:close()
+  os.remove(path)
   os.rename(tmp, path)
 end
 

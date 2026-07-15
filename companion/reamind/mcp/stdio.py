@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 
 
@@ -14,7 +15,6 @@ class StdioTransport:
     def start(self) -> bool:
         run_env = None
         if self._env is not None:
-            import os
             run_env = os.environ.copy()
             run_env.update(self._env)
         try:
