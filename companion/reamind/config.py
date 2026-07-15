@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .jsonio import atomic_write_json, read_json
+from .theme import Theme, default_theme
 
 if os.name == "nt":
     appdata = os.environ.get("APPDATA")
@@ -68,7 +69,7 @@ class SafetyConfig:
 @dataclass
 class Config:
     provider: ProviderConfig = field(default_factory=ProviderConfig)
-    theme: dict = field(default_factory=dict)
+    theme: Theme = field(default_factory=default_theme)
     projects_roots: list[str] = field(default_factory=list)
     quarantine_dir: str = ""
     mcp_servers: list = field(default_factory=list)
@@ -79,7 +80,7 @@ class Config:
     def to_dict(self) -> dict:
         return {
             "provider": self.provider.to_dict(),
-            "theme": self.theme,
+            "theme": self.theme.to_dict(),
             "projects_roots": self.projects_roots,
             "quarantine_dir": self.quarantine_dir,
             "mcp_servers": self.mcp_servers,
@@ -93,7 +94,7 @@ class Config:
         d = d or {}
         return cls(
             provider=ProviderConfig.from_dict(d.get("provider", {})),
-            theme=d.get("theme", {}),
+            theme=Theme.from_dict(d.get("theme", {})),
             projects_roots=d.get("projects_roots", []),
             quarantine_dir=d.get("quarantine_dir", ""),
             mcp_servers=d.get("mcp_servers", []),

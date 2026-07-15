@@ -34,6 +34,7 @@ local current_model = ""
 local current_colors = { bg = theme.DEFAULTS.bg, text = theme.DEFAULTS.text, accent = theme.DEFAULTS.accent,
                           user_bubble = theme.DEFAULTS.user_bubble, assistant_bubble = theme.DEFAULTS.assistant_bubble,
                           error = theme.DEFAULTS.error, font_scale = theme.DEFAULTS.font_scale }
+local theme_applied = false
 local theme_dirty = false
 local theme_preset_items = { "dark", "light" }
 local current_preset_idx = 0
@@ -137,7 +138,11 @@ end
 local function draw()
   local visible, open = reaper.ImGui_Begin(ctx, "ReaMind", true)
   if visible then
-    theme.apply(ctx, current_colors)
+    if not theme_applied or theme_dirty then
+      theme.apply(ctx, current_colors)
+      theme_applied = true
+      theme_dirty = false
+    end
     if reaper.ImGui_BeginChild(ctx, "transcript", 0, -60) then
       for _, m in ipairs(messages) do
         reaper.ImGui_TextWrapped(ctx, string.format("[%s] %s", m.role or "?", m.text or ""))
