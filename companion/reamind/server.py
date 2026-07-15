@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import sys
 import time
 import uuid
 from pathlib import Path
@@ -12,8 +13,7 @@ from .bridge import Bridge
 from .config import Config, load
 from .local_tools import build_library_executor, build_local_executor, write_status
 from .mcp_host import MCPHost
-from .providers.base import LLMProvider, Message, ToolCall
-from .providers.local import LocalProvider
+from .providers.base import LLMProvider, Message, ToolCall, ToolSpec
 from .provider_factory import build_provider
 from .tools.fx_map import resolve_fx_name
 from .tools.library import build_library_registry
@@ -40,6 +40,74 @@ class Server:
         lib_reg = build_library_registry()
         for spec in lib_reg.specs():
             self.registry.register(spec)
+        self.registry.register(ToolSpec(
+            name="get_provider_status",
+            description="Get current provider settings and connectivity status",
+            parameters={"type": "object", "properties": {}, "required": []},
+            executor="local",
+            destructive=False,
+            return_confirmation=False,
+        ))
+        self.registry.register(ToolSpec(
+            name="switch_provider",
+            description="Switch to a different LLM provider or model. Updates base_url, model, api_key, and tool_mode. Requires confirmation — this may incur costs.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "base_url": {"type": "string", "description": "Provider API endpoint"},
+                    "model": {"type": "string", "description": "Model name"},
+                    "api_key": {"type": "string", "description": "API key for the provider"},
+                    "tool_mode": {"type": "string", "description": "Tool calling mode: native, prompted-json, or auto"},
+                    "confirm_ok": {"type": "boolean", "description": "Set to true to confirm the switch"},
+                },
+                "required": ["confirm_ok"],
+            },
+            executor="local",
+            destructive=True,
+            return_confirmation=True,
+        ))
+        self.registry.register(ToolSpec(
+            name="list_mcp_servers",
+            description="List all connected MCP servers and their tool counts",
+            parameters={"type": "object", "properties": {}, "required": []},
+            executor="local",
+            destructive=False,
+            return_confirmation=False,
+        ))
+        self.registry.register(ToolSpec(
+            name="connect_mcp_server",
+            description="Connect to an MCP server and register its tools. For stdio servers provide command and args; for SSE servers provide url.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Name for this MCP server (used as tool prefix)"},
+                    "transport": {"type": "string", "description": "stdio or sse"},
+                    "command": {"type": "string", "description": "Executable (stdio transport)"},
+                    "args": {"type": "array", "items": {"type": "string"}, "description": "Arguments (stdio transport)"},
+                    "env": {"type": "object", "description": "Environment variables (stdio transport)"},
+                    "url": {"type": "string", "description": "SSE endpoint URL (sse transport)"},
+                },
+                "required": ["name", "transport"],
+            },
+            executor="local",
+            destructive=False,
+            return_confirmation=False,
+        ))
+        self.registry.register(ToolSpec(
+            name="disconnect_mcp_server",
+            description="Disconnect from an MCP server and unregister its tools. Requires confirmation.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Name of the MCP server to disconnect"},
+                    "confirm_ok": {"type": "boolean", "description": "Set to true to confirm disconnection"},
+                },
+                "required": ["name", "confirm_ok"],
+            },
+            executor="local",
+            destructive=True,
+            return_confirmation=True,
+        ))
         self.mcp_host = MCPHost()
         self._init_mcp()
         self._quarantine_base = Path(self.config.quarantine_dir)
@@ -52,7 +120,9 @@ class Server:
         existing = build_local_executor(
             self.config, self._config_path, self.bridge.root, reaper_executor,
             mcp_host=self.mcp_host,
-            rebuild_callback=self.rebuild_provider,
+            rebuild_callback=lambda: self.rebuild_provider(check_live=True),
+            registry_register=self.registry.register,
+            registry_unregister=self.registry.unregister_prefix,
         )
         lib_exec = build_library_executor(self.config, self._quarantine_base, self._config_path)
         mcp = self.mcp_host.execute if self.mcp_host else lambda c: {"ok": False, "error": "no MCP host"}
@@ -70,8 +140,8 @@ class Server:
     def _rebuild_local_executor(self, reaper_executor=None):
         self.local_executor = self._build_merged_local_executor(reaper_executor)
 
-    def rebuild_provider(self) -> None:
-        self.provider = build_provider(self.config, check_live=False)
+    def rebuild_provider(self, check_live: bool = False) -> None:
+        self.provider = build_provider(self.config, check_live=check_live)
         self._rebuild_local_executor()
 
     def _init_mcp(self) -> None:
@@ -80,8 +150,8 @@ class Server:
                 client = self.mcp_host.add_server(mcp_config.name, mcp_config.to_dict())
                 for spec in client.list_tools():
                     self.registry.register(spec)
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[ReaMind] WARNING: failed to connect MCP server '{mcp_config.name}': {e}", file=sys.stderr)
 
     def make_reaper_executor(
         self,

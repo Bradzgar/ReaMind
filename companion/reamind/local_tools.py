@@ -13,7 +13,7 @@ from .library.quarantine import (
     unnest_project,
 )
 from .library.scanner import scan_root
-from .providers.base import ToolCall
+from .providers.base import ToolCall, ToolSpec
 from .providers.local import detect_servers, list_models
 
 
@@ -63,6 +63,8 @@ def build_local_executor(
     reaper_executor: Callable[[ToolCall], dict] | None = None,
     mcp_host=None,
     rebuild_callback: Callable[[], None] | None = None,
+    registry_register: Callable[[ToolSpec], None] | None = None,
+    registry_unregister: Callable[[str], None] | None = None,
 ) -> Callable[[ToolCall], dict]:
     def executor(call: ToolCall) -> dict:
         if call.name == "server_status":
@@ -127,6 +129,9 @@ def build_local_executor(
             try:
                 client = mcp_host.add_server(name, mcp_config)
                 tools = client.list_tools()
+                if registry_register is not None:
+                    for tool in tools:
+                        registry_register(tool)
                 return {"ok": True, "result": {
                     "server": name,
                     "tools_registered": len(tools),
@@ -136,10 +141,11 @@ def build_local_executor(
                 return {"ok": False, "error": f"failed to connect MCP server: {e}"}
         if call.name == "disconnect_mcp_server" and mcp_host is not None:
             name = (call.arguments or {}).get("name", "")
-            try:
-                mcp_host.remove_server(name)
-            except KeyError:
+            if not any(s["name"] == name for s in mcp_host.list_servers()):
                 return {"ok": False, "error": f"MCP server '{name}' not found"}
+            if registry_unregister is not None:
+                registry_unregister(name)
+            mcp_host.remove_server(name)
             return {"ok": True, "result": {"message": f"MCP server '{name}' disconnected"}}
         if call.name in ("list_mcp_servers", "connect_mcp_server", "disconnect_mcp_server"):
             return {"ok": False, "error": f"unknown local tool: {call.name}"}

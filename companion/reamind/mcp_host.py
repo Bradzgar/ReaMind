@@ -20,9 +20,12 @@ class MCPClient:
             "capabilities": {},
             "clientInfo": {"name": "reamind", "version": "1.0.0"},
         }))
-        resp = parse_response(self._transport.recv())
-        if "error" in resp:
-            raise RuntimeError(f"initialize failed: {resp}")
+        try:
+            resp = parse_response(self._transport.recv())
+        except JSONRPCError as e:
+            raise RuntimeError(f"initialize failed: {e}") from e
+        if resp is None:
+            raise RuntimeError("initialize response missing id")
         self._transport.send(send_notification("notifications/initialized"))
         return True
 
