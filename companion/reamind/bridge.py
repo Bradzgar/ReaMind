@@ -62,7 +62,7 @@ class Bridge:
             finally:
                 try:
                     f.unlink()
-                except FileNotFoundError:
+                except (FileNotFoundError, PermissionError):
                     pass
         return out
 
