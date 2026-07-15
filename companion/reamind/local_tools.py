@@ -13,6 +13,7 @@ from .library.quarantine import (
     unnest_project,
 )
 from .library.scanner import scan_root
+from .provider_factory import build_provider
 from .providers.base import ToolCall
 from .providers.local import detect_servers, list_models
 
@@ -61,6 +62,8 @@ def build_local_executor(
     config_path: Path | None,
     bridge_root: Path,
     reaper_executor: Callable[[ToolCall], dict] | None = None,
+    mcp_host=None,
+    rebuild_callback: Callable[[], None] | None = None,
 ) -> Callable[[ToolCall], dict]:
     def executor(call: ToolCall) -> dict:
         if call.name == "server_status":
@@ -73,6 +76,74 @@ def build_local_executor(
             return result
         if call.name == "apply_template":
             return apply_template(call, reaper_executor)
+        if call.name == "get_provider_status":
+            connected = False
+            try:
+                servers = detect_servers()
+                if config.provider.base_url:
+                    connected = True
+                elif servers:
+                    connected = True
+            except Exception:
+                pass
+            return {"ok": True, "result": {
+                "base_url": config.provider.base_url,
+                "model": config.provider.model,
+                "tool_mode": config.provider.tool_mode,
+                "connected": connected,
+            }}
+        if call.name == "switch_provider":
+            args = call.arguments or {}
+            if "base_url" in args:
+                config.provider.base_url = args["base_url"]
+            if "model" in args:
+                config.provider.model = args["model"]
+            if "api_key" in args:
+                config.provider.api_key = args["api_key"]
+            if "tool_mode" in args:
+                config.provider.tool_mode = args["tool_mode"]
+            config_save(config, config_path)
+            try:
+                if rebuild_callback is not None:
+                    rebuild_callback()
+            except Exception as e:
+                return {"ok": False, "error": f"provider switch failed: {e}"}
+            write_status(bridge_root, config)
+            return {"ok": True, "result": {"message": "provider switched", "base_url": config.provider.base_url, "model": config.provider.model}}
+        if call.name == "list_mcp_servers" and mcp_host is not None:
+            return {"ok": True, "result": {"servers": mcp_host.list_servers()}}
+        if call.name == "connect_mcp_server" and mcp_host is not None:
+            args = call.arguments or {}
+            name = args.get("name", "")
+            if name in mcp_host._clients:
+                return {"ok": False, "error": f"MCP server '{name}' is already connected"}
+            mcp_config = {"transport": args.get("transport", "stdio")}
+            if mcp_config["transport"] == "sse":
+                mcp_config["url"] = args.get("url", "")
+            else:
+                mcp_config["command"] = args.get("command", "")
+                mcp_config["args"] = args.get("args", [])
+                if "env" in args:
+                    mcp_config["env"] = args["env"]
+            try:
+                client = mcp_host.add_server(name, mcp_config)
+                tools = client.list_tools()
+                return {"ok": True, "result": {
+                    "server": name,
+                    "tools_registered": len(tools),
+                    "tool_names": [t.name for t in tools],
+                }}
+            except Exception as e:
+                return {"ok": False, "error": f"failed to connect MCP server: {e}"}
+        if call.name == "disconnect_mcp_server" and mcp_host is not None:
+            name = (call.arguments or {}).get("name", "")
+            try:
+                mcp_host.remove_server(name)
+            except KeyError:
+                return {"ok": False, "error": f"MCP server '{name}' not found"}
+            return {"ok": True, "result": {"message": f"MCP server '{name}' disconnected"}}
+        if call.name in ("list_mcp_servers", "connect_mcp_server", "disconnect_mcp_server"):
+            return {"ok": False, "error": f"unknown local tool: {call.name}"}
         return {"ok": False, "error": f"unknown local tool: {call.name}"}
 
     return executor

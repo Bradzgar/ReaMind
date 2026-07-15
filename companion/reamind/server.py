@@ -50,7 +50,9 @@ class Server:
 
     def _build_merged_local_executor(self, reaper_executor=None):
         existing = build_local_executor(
-            self.config, self._config_path, self.bridge.root, reaper_executor
+            self.config, self._config_path, self.bridge.root, reaper_executor,
+            mcp_host=self.mcp_host,
+            rebuild_callback=self.rebuild_provider,
         )
         lib_exec = build_library_executor(self.config, self._quarantine_base, self._config_path)
         mcp = self.mcp_host.execute if self.mcp_host else lambda c: {"ok": False, "error": "no MCP host"}
