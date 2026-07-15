@@ -44,6 +44,40 @@ class ProviderConfig:
 
 
 @dataclass
+class MCPConfig:
+    name: str = ""
+    transport: str = "stdio"
+    command: str = ""
+    args: list[str] = field(default_factory=list)
+    env: dict | None = None
+    url: str = ""
+
+    def to_dict(self) -> dict:
+        d = {"name": self.name, "transport": self.transport}
+        if self.command:
+            d["command"] = self.command
+        if self.args:
+            d["args"] = self.args
+        if self.env is not None:
+            d["env"] = self.env
+        if self.url:
+            d["url"] = self.url
+        return d
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "MCPConfig":
+        d = d or {}
+        return cls(
+            name=d.get("name", ""),
+            transport=d.get("transport", "stdio"),
+            command=d.get("command", ""),
+            args=d.get("args", []),
+            env=d.get("env"),
+            url=d.get("url", ""),
+        )
+
+
+@dataclass
 class SafetyConfig:
     confirm_destructive: bool = True
     max_tool_iterations: int = 8
@@ -72,7 +106,7 @@ class Config:
     theme: Theme = field(default_factory=default_theme)
     projects_roots: list[str] = field(default_factory=list)
     quarantine_dir: str = "~/.config/reamind/quarantine"
-    mcp_servers: list = field(default_factory=list)
+    mcp_servers: list[MCPConfig] = field(default_factory=list)
     templates_dir: str = ""
     safety: SafetyConfig = field(default_factory=SafetyConfig)
     bridge_dir: str = ""
@@ -83,7 +117,7 @@ class Config:
             "theme": self.theme.to_dict(),
             "projects_roots": self.projects_roots,
             "quarantine_dir": self.quarantine_dir,
-            "mcp_servers": self.mcp_servers,
+            "mcp_servers": [s.to_dict() for s in self.mcp_servers],
             "templates_dir": self.templates_dir,
             "safety": self.safety.to_dict(),
             "bridge_dir": self.bridge_dir,
@@ -97,7 +131,7 @@ class Config:
             theme=Theme.from_dict(d.get("theme", {})),
             projects_roots=d.get("projects_roots", []),
             quarantine_dir=d.get("quarantine_dir", "~/.config/reamind/quarantine"),
-            mcp_servers=d.get("mcp_servers", []),
+            mcp_servers=[MCPConfig.from_dict(s) for s in d.get("mcp_servers", [])],
             templates_dir=d.get("templates_dir", ""),
             safety=SafetyConfig.from_dict(d.get("safety", {})),
             bridge_dir=d.get("bridge_dir", ""),
