@@ -43,3 +43,14 @@ Prereqs:
 8. **Template:** "Apply the drum_kit_7mic template." 8 tracks created in a DRUMS folder.
 9. **Delete confirmation:** "Delete track X." Verify confirmation prompt before execution.
 10. **Undo:** Use Ctrl+Z to undo any operation. Verify undo works for every tool.
+
+## Library Management Smoke
+
+1. **Scan empty root:** `scan_root("/tmp")` — returns project_count=0, no findings.
+2. **Scan with project:** `scan_root("/path/to/project")` — returns counts for each finding type.
+3. **Findings detail:** `list_findings("/path/to/project", "regenerable")` — returns only regenerable findings.
+4. **File details:** `get_file_details("/path/to/file.wav")` — returns hash, size, modified time.
+5. **Quarantine:** `quarantine_files(["/path/to/orphan.wav"])` — file appears in `quarantine/YYYY-MM-DD/`.
+6. **Reclaim:** `reclaim_space("/path/to/project")` — regenerable files deleted, bytes_freed reported.
+7. **Consolidate:** `consolidate_project("/path/to/project.RPP")` — external media copied in, moved_count reported.
+8. **Unnest:** `unnest_project("/path/to/nested.RPP")` — project copied to sibling dir under projects_root.
