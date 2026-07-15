@@ -45,7 +45,7 @@ local available_models = {}
 local current_model = ""
 local current_colors = { bg = theme.DEFAULTS.bg, text = theme.DEFAULTS.text, accent = theme.DEFAULTS.accent,
                           user_bubble = theme.DEFAULTS.user_bubble, assistant_bubble = theme.DEFAULTS.assistant_bubble,
-                          error = theme.DEFAULTS.error, font_scale = theme.DEFAULTS.font_scale }
+                          error = theme.DEFAULTS.error }
 local theme_preset_items = { "dark", "light" }
 local current_preset_idx = 0
 
@@ -215,10 +215,6 @@ local function draw()
         if changed then
           current_colors[key] = val
         end
-      end
-      local fs_changed, fs_val = reaper.ImGui_SliderDouble(ctx, "Font Scale", current_colors.font_scale or 1.0, 0.5, 2.0, "%.2f")
-      if fs_changed then
-        current_colors.font_scale = fs_val
       end
       if reaper.ImGui_Button(ctx, "Save Theme") then
         local config_path

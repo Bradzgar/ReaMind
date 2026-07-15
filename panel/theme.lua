@@ -9,7 +9,6 @@ M.DEFAULTS = {
     user_bubble = "#2d5a27",
     assistant_bubble = "#1e3a5f",
     error = "#f44747",
-    font_scale = 1.0,
 }
 
 function M.merge_colors(base, overrides)
@@ -45,10 +44,6 @@ function M.apply(ctx, colors)
     if cv(col.text) then
         reaper.ImGui_PushStyleColor(ctx, reaper.ImGui_Col_Text(), cv(col.text))
         M._pushed = M._pushed + 1
-    end
-    if col.font_scale and col.font_scale > 0 then
-        local io = reaper.ImGui_GetIO(ctx)
-        if io then io.FontGlobalScale = col.font_scale end
     end
 end
 

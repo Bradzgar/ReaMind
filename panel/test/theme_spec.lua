@@ -6,7 +6,6 @@ local helpers = require("helpers")
 
 t.eq(theme.DEFAULTS.bg, "#1e1e1e")
 t.eq(theme.DEFAULTS.text, "#d4d4d4")
-t.eq(theme.DEFAULTS.font_scale, 1.0)
 
 local merged = theme.merge_colors(
     { bg = "#111", text = "#222" },
