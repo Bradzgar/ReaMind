@@ -6,7 +6,14 @@ local helpers = require("helpers")
 local tools = require("tools.readonly")
 
 local BRIDGE_ROOT = SCRIPT_DIR .. "../bridge"
-local COMPANION_PY = SCRIPT_DIR .. "../companion/.venv/bin/python"
+
+local is_windows = reaper.GetOS():match("^Win")
+local COMPANION_PY
+if is_windows then
+  COMPANION_PY = SCRIPT_DIR .. "../companion/.venv/Scripts/python.exe"
+else
+  COMPANION_PY = SCRIPT_DIR .. "../companion/.venv/bin/python"
+end
 
 local ctx = reaper.ImGui_CreateContext("ReaMind")
 local messages = {}

@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from .jsonio import atomic_write_json, read_json
 
-DEFAULT_CONFIG_PATH = Path.home() / ".config" / "reamind" / "config.json"
+if os.name == "nt":
+    appdata = os.environ.get("APPDATA")
+    DEFAULT_CONFIG_PATH = Path(appdata) / "reamind" / "config.json" if appdata else Path.home() / "reamind" / "config.json"
+else:
+    DEFAULT_CONFIG_PATH = Path.home() / ".config" / "reamind" / "config.json"
 
 
 @dataclass
