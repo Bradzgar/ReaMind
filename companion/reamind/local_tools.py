@@ -75,7 +75,19 @@ def apply_template(call: ToolCall, reaper_executor: Callable[[ToolCall], dict] |
     if not template_name:
         return {"ok": False, "error": "missing template_name"}
 
-    templates_dir = Path(__file__).resolve().parents[2] / "templates"
+    def _find_templates_dir() -> Path:
+        current = Path(__file__).resolve().parent
+        for _ in range(10):
+            candidate = current / "templates"
+            if candidate.is_dir():
+                return candidate
+            parent = current.parent
+            if parent == current:
+                break
+            current = parent
+        return Path(__file__).resolve().parents[2] / "templates"
+
+    templates_dir = _find_templates_dir()
     path = templates_dir / f"{template_name}.json"
     try:
         data = read_json(path)

@@ -67,9 +67,14 @@ function M.create_folder(args)
   reaper.SetMediaTrackInfo_Value(folder_tr, "I_FOLDERDEPTH", 1)
 
   local child_count = 0
+  local folder_pos = idx
   for _, child_guid in ipairs(child_guids) do
-    local child_tr = track_by_guid(child_guid)
+    local child_tr, child_idx = track_by_guid(child_guid)
     if child_tr then
+      if child_idx < folder_pos then
+        folder_pos = folder_pos - 1
+      end
+      reaper.MoveMediaTrackToTrack(child_tr, folder_pos + 1 + child_count)
       reaper.SetMediaTrackInfo_Value(child_tr, "I_FOLDERDEPTH", -1)
       child_count = child_count + 1
     end
@@ -103,6 +108,9 @@ function M.set_track_props(args)
   end
   if args.record_arm ~= nil then
     reaper.SetMediaTrackInfo_Value(tr, "I_RECARM", args.record_arm and 1 or 0)
+  end
+  if args.input ~= nil then
+    reaper.GetSetMediaTrackInfo_String(tr, "P_RECINPUT", args.input, true)
   end
 
   return true, { track_guid = guid }
@@ -166,6 +174,11 @@ function M.create_sidechain(args)
   local src_tr = track_by_guid(source_guid)
   local tgt_tr = track_by_guid(target_guid)
   if not src_tr or not tgt_tr then return false, "track not found" end
+
+  local send_idx = reaper.CreateTrackSend(src_tr, tgt_tr)
+  if send_idx >= 0 then
+    reaper.SetTrackSendInfo_Value(src_tr, 0, send_idx, "I_DSTCHAN", 2 | (2 << 5))
+  end
 
   local fx_idx = tonumber(args and args.target_fx_index) or -1
   if fx_idx < 0 then
@@ -236,33 +249,6 @@ function M.undo_point(args)
   return true, { name = args and args.name or "" }
 end
 
-function M.apply_template(args)
-  local steps = args and args.steps
-  if not steps then return false, "missing steps" end
-
-  local completed = 0
-  local results = {}
-  for _, step in ipairs(steps) do
-    local fn = M[step.tool]
-    if fn then
-      local ok, result = pcall(fn, step.args or {})
-      if ok then
-        completed = completed + 1
-        results[#results + 1] = result
-      else
-        results[#results + 1] = { error = tostring(result) }
-      end
-    end
-  end
-
-  return true, {
-    template_name = args and args.template_name or "",
-    steps_completed = completed,
-    total_steps = #steps,
-    results = results,
-  }
-end
-
 M.tool_specs = {
   create_track = {
     name = { type = "string" },
@@ -303,10 +289,6 @@ M.tool_specs = {
     value = { type = "number" },
   },
   list_available_fx = {},
-  apply_template = {
-    template_name = { type = "string" },
-    steps = { type = "array" },
-  },
   undo_point = {
     name = { type = "string" },
   },
