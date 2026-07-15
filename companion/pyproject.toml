@@ -4,6 +4,19 @@ version = "0.1.0"
 description = "ReaMind companion — the AI brain for the REAPER assistant panel"
 requires-python = ">=3.11"
 dependencies = []
+authors = [
+    { name = "Brad Zgar" }
+]
+urls = { repository = "https://github.com/bradzgar/reamind" }
+license = { text = "MIT" }
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Multimedia :: Sound/Audio",
+]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
