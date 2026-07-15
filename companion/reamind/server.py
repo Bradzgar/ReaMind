@@ -13,6 +13,8 @@ from .config import Config, load
 from .local_tools import build_local_executor, write_status
 from .providers.base import LLMProvider, Message, ToolCall
 from .providers.local import LocalProvider, detect_servers, list_models
+from .tools.fx_map import resolve_fx_name
+from .tools.reaper_construction import build_construction_registry
 from .tools.reaper_readonly import build_registry
 
 SYSTEM_PROMPT = (
@@ -29,6 +31,9 @@ class Server:
         self.provider = provider
         self.bridge = bridge
         self.registry = build_registry()
+        con_reg = build_construction_registry()
+        for spec in con_reg.specs():
+            self.registry.register(spec)
         self.history: list[Message] = [Message(role="system", content=SYSTEM_PROMPT)]
         self._req_seq = 0
         self._config_path = config_path
@@ -41,8 +46,11 @@ class Server:
         sleep: Callable[[float], None] = time.sleep,
     ) -> Callable[[ToolCall], dict]:
         def executor(call: ToolCall) -> dict:
+            args = dict(call.arguments or {})
+            if call.name == "insert_fx" and "fx_name" in args:
+                args["fx_name"] = resolve_fx_name(args["fx_name"])
             self._req_seq += 1
-            call_id = self.bridge.send_request(call.name, call.arguments, self._req_seq)
+            call_id = self.bridge.send_request(call.name, args, self._req_seq)
             deadline = now() + self.config.safety.tool_timeout_s
             while now() < deadline:
                 result = self.bridge.read_result(call_id)
@@ -56,6 +64,9 @@ class Server:
     def handle_user_message(self, text: str) -> None:
         self.history.append(Message(role="user", content=text))
         executor = self.make_reaper_executor()
+        self.local_executor = build_local_executor(
+            self.config, self._config_path, self.bridge.root, executor
+        )
         run_turn(
             self.provider,
             self.registry,
@@ -80,10 +91,23 @@ class Server:
         self.bridge.clear_stale()
         write_status(self.bridge.root, self.config)
         self.bridge.write_session(uuid.uuid4().hex)
+        self._scan_fx()
         stop = stop or (lambda: False)
         while not stop():
             self.tick()
             sleep(interval)
+
+    def _scan_fx(self) -> None:
+        try:
+            executor = self.make_reaper_executor(poll_interval=0.05)
+            call = ToolCall(id="startup_scan", name="list_available_fx", arguments={})
+            result = executor(call)
+            if result.get("ok"):
+                from .tools.fx_map import set_scanned_cache
+                fx_list = result.get("result", {}).get("fx_list", [])
+                set_scanned_cache(fx_list)
+        except Exception:
+            pass
 
 
 def build_provider(config: Config) -> LLMProvider:

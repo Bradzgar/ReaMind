@@ -154,6 +154,7 @@ def test_server_writes_status_on_run(tmp_path, monkeypatch):
     config = default_config()
     config.provider.model = "m"
     config.provider.base_url = "http://x:11434"
+    config.safety.tool_timeout_s = 0.01
     bridge = Bridge(tmp_path / "br")
     bridge.ensure_dirs()
     provider = FakeProvider([])

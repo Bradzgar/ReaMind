@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Callable
 
 from .config import Config, save as config_save
-from .jsonio import atomic_write_json
+from .jsonio import atomic_write_json, read_json
 from .providers.base import ToolCall
 from .providers.local import detect_servers, list_models
 
@@ -49,17 +49,60 @@ def write_status(bridge_root: Path, config: Config, servers: list | None = None)
 
 
 def build_local_executor(
-    config: Config, config_path: Path | None, bridge_root: Path
+    config: Config,
+    config_path: Path | None,
+    bridge_root: Path,
+    reaper_executor: Callable[[ToolCall], dict] | None = None,
 ) -> Callable[[ToolCall], dict]:
     def executor(call: ToolCall) -> dict:
         if call.name == "server_status":
             result = server_status()
-            write_status(bridge_root, config, servers=result["result"]["servers"])
+            write_status(bridge_root, config)
             return result
         if call.name == "update_provider_config":
             result = update_provider_config(call, config, config_path, config_save)
             write_status(bridge_root, config)
             return result
+        if call.name == "apply_template":
+            return apply_template(call, reaper_executor)
         return {"ok": False, "error": f"unknown local tool: {call.name}"}
 
     return executor
+
+
+def apply_template(call: ToolCall, reaper_executor: Callable[[ToolCall], dict] | None) -> dict:
+    template_name = (call.arguments or {}).get("template_name", "")
+    if not template_name:
+        return {"ok": False, "error": "missing template_name"}
+
+    templates_dir = Path(__file__).resolve().parents[2] / "templates"
+    path = templates_dir / f"{template_name}.json"
+    try:
+        data = read_json(path)
+    except (FileNotFoundError, ValueError):
+        return {"ok": False, "error": f"template not found: {template_name}"}
+
+    steps = data if isinstance(data, list) else data.get("steps", [])
+    if not steps:
+        return {"ok": False, "error": "template has no steps"}
+
+    if reaper_executor is None:
+        return {"ok": False, "error": "template execution requires reaper executor"}
+
+    completed = 0
+    for step in steps:
+        step_name = step.get("tool", "")
+        step_args = step.get("args", {})
+        step_call = ToolCall(id=f"tmpl_{completed}", name=step_name, arguments=step_args)
+        result = reaper_executor(step_call)
+        if result.get("ok"):
+            completed += 1
+
+    return {
+        "ok": True,
+        "result": {
+            "template_name": template_name,
+            "steps_completed": completed,
+            "total_steps": len(steps),
+        },
+    }
