@@ -31,6 +31,12 @@ local settings_loaded = false
 local server_display = "scanning..."
 local available_models = {}
 local current_model = ""
+local current_colors = { bg = theme.DEFAULTS.bg, text = theme.DEFAULTS.text, accent = theme.DEFAULTS.accent,
+                          user_bubble = theme.DEFAULTS.user_bubble, assistant_bubble = theme.DEFAULTS.assistant_bubble,
+                          error = theme.DEFAULTS.error, font_scale = theme.DEFAULTS.font_scale }
+local theme_dirty = false
+local theme_preset_items = { "dark", "light" }
+local current_preset_idx = 0
 
 local function ensure_dirs()
   for _, sub in ipairs({ "inbox", "chat", "requests", "results" }) do
@@ -177,6 +183,45 @@ local function draw()
         settings_loaded = false
         server_display = "scanning..."
         available_models = {}
+      end
+      reaper.ImGui_Separator(ctx)
+      reaper.ImGui_Text(ctx, "Theme")
+      local preset_changed, new_preset = reaper.ImGui_Combo(ctx, "Preset", current_preset_idx, table.concat(theme_preset_items, "\0"))
+      if preset_changed then
+        current_preset_idx = new_preset
+        local preset_name = theme_preset_items[new_preset + 1]
+        if preset_name == "dark" then current_colors = theme.merge_colors(theme.DEFAULTS, {}) end
+        if preset_name == "light" then
+          current_colors = theme.merge_colors(theme.DEFAULTS, {
+            bg = "#f0f0f0", text = "#1a1a1a", accent = "#007acc",
+            user_bubble = "#d4edda", assistant_bubble = "#d6e4f0", error = "#dc3545",
+          })
+        end
+        theme_dirty = true
+      end
+      for _, key in ipairs({ "bg", "text", "accent", "user_bubble", "assistant_bubble", "error" }) do
+        local changed, val = reaper.ImGui_InputText(ctx, key, current_colors[key] or "")
+        if changed then
+          current_colors[key] = val
+          theme_dirty = true
+        end
+      end
+      local fs_changed, fs_val = reaper.ImGui_SliderDouble(ctx, "Font Scale", current_colors.font_scale or 1.0, 0.5, 2.0, "%.2f")
+      if fs_changed then
+        current_colors.font_scale = fs_val
+        theme_dirty = true
+      end
+      if theme_dirty and reaper.ImGui_Button(ctx, "Apply Theme") then
+        theme.apply(ctx, current_colors)
+        theme_dirty = false
+      end
+      reaper.ImGui_SameLine(ctx)
+      if reaper.ImGui_Button(ctx, "Save Theme") then
+        local conf = {
+          theme = { preset = theme_preset_items[current_preset_idx + 1] or "dark", colors = current_colors }
+        }
+        ipc.write_json_atomic(BRIDGE_ROOT .. "/../config_overlay.json", conf)
+        theme_dirty = false
       end
     end
     reaper.ImGui_End(ctx)
