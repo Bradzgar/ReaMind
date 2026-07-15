@@ -4,6 +4,7 @@ package.path = SCRIPT_DIR .. "?.lua;" .. package.path
 local ipc = require("ipc")
 local helpers = require("helpers")
 local tools = require("tools.readonly")
+local theme = require("theme")
 
 local BRIDGE_ROOT = SCRIPT_DIR .. "../bridge"
 
@@ -25,6 +26,11 @@ local companion_started = false
 local HEARTBEAT_TIMEOUT = 15
 local last_heartbeat = 0
 local state = { frame = 0 }
+
+local settings_loaded = false
+local server_display = "scanning..."
+local available_models = {}
+local current_model = ""
 
 local function ensure_dirs()
   for _, sub in ipairs({ "inbox", "chat", "requests", "results" }) do
@@ -106,6 +112,22 @@ local function check_heartbeat()
   end
 end
 
+local function load_status()
+  local path = BRIDGE_ROOT .. "/status.json"
+  local s = ipc.read_json(path)
+  if not s then return nil end
+  return s
+end
+
+local function save_config(config_table)
+  local data = config_table or {}
+  local path = BRIDGE_ROOT .. "/config_overlay.json"
+  ipc.write_json_atomic(path, data)
+end
+
+local function apply_theme_to_style()
+end
+
 local function draw()
   local visible, open = reaper.ImGui_Begin(ctx, "ReaMind", true)
   if visible then
@@ -132,6 +154,30 @@ local function draw()
       ipc.push_inbox(BRIDGE_ROOT, inbox_seq, input_text)
       messages[#messages + 1] = { role = "user", text = input_text }
       input_text = ""
+    end
+    if reaper.ImGui_CollapsingHeader(ctx, "Settings") then
+      if not settings_loaded and companion_started then
+        local status = load_status()
+        if status then
+          local server_names = {}
+          for _, s in ipairs(status.servers or {}) do
+            server_names[#server_names + 1] = s.name
+            for _, m in ipairs(s.models or {}) do
+              available_models[#available_models + 1] = { name = m, base_url = s.base_url }
+            end
+          end
+          server_display = table.concat(server_names, ", ") or "none found"
+          settings_loaded = true
+        end
+      end
+      reaper.ImGui_Text(ctx, "Servers: " .. (server_display or "scanning..."))
+      reaper.ImGui_TextWrapped(ctx, "Model: " .. (current_model or "auto-detect"))
+
+      if reaper.ImGui_Button(ctx, "Refresh Servers") then
+        settings_loaded = false
+        server_display = "scanning..."
+        available_models = {}
+      end
     end
     reaper.ImGui_End(ctx)
   end
