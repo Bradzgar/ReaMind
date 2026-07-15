@@ -171,7 +171,7 @@ local function draw()
         end
       end
       reaper.ImGui_Text(ctx, "Servers: " .. (server_display or "scanning..."))
-      reaper.ImGui_TextWrapped(ctx, "Model: " .. (current_model or "auto-detect"))
+      reaper.ImGui_TextWrapped(ctx, "Model: " .. (current_model ~= "" and current_model or "auto-detect"))
 
       if reaper.ImGui_Button(ctx, "Refresh Servers") then
         settings_loaded = false
