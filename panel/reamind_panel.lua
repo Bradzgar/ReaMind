@@ -76,10 +76,8 @@ do
 end
 
 local function launch_companion()
-  local cmd = string.format('"%s" -m reamind.server --bridge "%s" --config "%s"', COMPANION_PY, BRIDGE_ROOT, config_path())
-  if is_windows then
-    cmd = 'cmd /k ' .. cmd
-  end
+  local log_path = BRIDGE_ROOT .. SEP .. "companion_error.log"
+  local cmd = string.format('"%s" -m reamind.server --bridge "%s" --config "%s" 2> "%s"', COMPANION_PY, BRIDGE_ROOT, config_path(), log_path)
   reaper.ExecProcess(cmd, -2)
   companion_started = true
   last_heartbeat = reaper.time_precise()
@@ -236,6 +234,19 @@ local function draw()
         c.provider.api_key = provider_api_key
         ipc.write_json_atomic(config_path(), c)
         launch_companion()
+      end
+      do
+        local log_path = BRIDGE_ROOT .. SEP .. "companion_error.log"
+        local log_file = io.open(log_path, "r")
+        if log_file then
+          local log_text = log_file:read("*a")
+          log_file:close()
+          if log_text and #log_text > 0 then
+            reaper.ImGui_Separator(ctx)
+            reaper.ImGui_TextColored(ctx, 0xFF4040FF, "Companion Errors")
+            reaper.ImGui_TextWrapped(ctx, log_text)
+          end
+        end
       end
       reaper.ImGui_Separator(ctx)
       reaper.ImGui_Text(ctx, "Theme")
